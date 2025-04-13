@@ -1,382 +1,525 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Juju Dashboard</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
-      margin: 0;
-      padding: 20px;
-      color: #333;
-      background-color: #f5f5f5;
-    }
-    
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      background-color: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      overflow: hidden;
-    }
-    
-    h1 {
-      font-size: 24px;
-      margin: 0;
-      padding: 20px;
-      background-color: #0078d7;
-      color: white;
-    }
-    
-    .tabs {
-      display: flex;
-      border-bottom: 1px solid #ddd;
-      background-color: #f9f9f9;
-    }
-    
-    .tab {
-      padding: 12px 20px;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-    }
-    
-    .tab.active {
-      border-bottom-color: #0078d7;
-      font-weight: 500;
-    }
-    
-    .tab-content {
-      display: none;
-      padding: 20px;
-    }
-    
-    .tab-content.active {
-      display: block;
-    }
-    
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    
-    th, td {
-      text-align: left;
-      padding: 10px;
-      border-bottom: 1px solid #eee;
-    }
-    
-    th {
-      background-color: #f5f5f5;
-      font-weight: 500;
-    }
-    
-    tr:hover {
-      background-color: #f9f9f9;
-    }
-    
-    .editable:hover {
-      background-color: #e9f5ff;
-      cursor: pointer;
-    }
-    
-    input[type="text"] {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
-    
-    .chart-container {
-      height: 300px;
-      margin-bottom: 30px;
-    }
-    
-    .no-data {
-      text-align: center;
-      padding: 50px 0;
-      color: #888;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Juju Dashboard</h1>
-    
-    <div class="tabs">
-      <div class="tab active" data-tab="sessions">Sessions</div>
-      <div class="tab" data-tab="charts">Charts</div>
-    </div>
-    
-    <div id="sessions" class="tab-content active">
-      <div id="sessions-table-container">
-        <table id="sessions-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Project</th>
-              <th>Duration</th>
-              <th>Start</th>
-              <th>End</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody id="sessions-body">
-            <!-- Sessions will be loaded here -->
-          </tbody>
-        </table>
+  <head>
+    <title>Juju Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Load Chart.js upfront -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div style="padding: 10px; text-align: center;">
+        <img src="assets/placeholder-logo.png" alt="Juju Logo" style="height: 60px;">
       </div>
-    </div>
-    
-    <div id="charts" class="tab-content">
-      <div class="chart-container">
-        <h3>Weekly Hours by Project</h3>
-        <canvas id="weekly-chart"></canvas>
+  
+      <div class="tabs">
+        <div class="tab active" data-tab="graphs">Graphs</div>
+        <div class="tab" data-tab="sessions-projects">Edit</div>
       </div>
-      <div class="chart-container">
-        <h3>Project Distribution</h3>
-        <canvas id="pie-chart"></canvas>
+  
+      <div id="graphs" class="tab-content active">
+        <div class="chart-container">
+          <canvas id="yearly-chart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="weekly-chart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="pie-chart"></canvas>
+        </div>
       </div>
-    </div>
-  </div>
-
-  <script>
-    // Load Chart.js from CDN
-    const chartScript = document.createElement('script');
-    chartScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js';
-    document.head.appendChild(chartScript);
-    
-    // Tab functionality
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        // Deactivate all tabs
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  
+      <div id="sessions-projects" class="tab-content">
+        <div id="recent-sessions-table-container">
+          <table id="recent-sessions-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Project</th>
+                <th>Duration</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="recent-sessions-body">
+              <!-- Sessions will be loaded here -->
+            </tbody>
+          </table>
+        </div>
+      
+        <div id="projects-management">
+          <ul id="projects-list">
+            <!-- Projects will be loaded here -->
+          </ul>
+          <div>
+            <button id="add-project-button">Add Project</button>
+            <input type="text" id="new-project-name" placeholder="New Project Name">
+          </div>
+        </div>
+      </div>
+  
+      <script>
+        // Global variables to track chart instances
+        let yearlyChart = null;
+        let weeklyChart = null;
+        let pieChart = null;
         
-        // Activate clicked tab
-        tab.classList.add('active');
-        document.getElementById(tab.dataset.tab).classList.add('active');
-      });
-    });
-    
-    // Load sessions data
-    async function loadSessions() {
-      try {
-        const sessions = await window.api.loadSessions();
-        
-        if (sessions.length === 0) {
-          document.getElementById('sessions-body').innerHTML = `
-            <tr>
-              <td colspan="6" class="no-data">No sessions recorded yet. Start a session to begin tracking.</td>
-            </tr>
-          `;
-          return;
-        }
-        
-        // Sort sessions by date, newest first
-        sessions.sort((a, b) => new Date(b.date + ' ' + b.start_time) - new Date(a.date + ' ' + a.start_time));
-        
-        const tbody = document.getElementById('sessions-body');
-        tbody.innerHTML = '';
-        
-        sessions.forEach((session, index) => {
-          const row = document.createElement('tr');
-          
-          // Format date for display
-          const dateObj = new Date(session.date);
-          const formattedDate = dateObj.toLocaleDateString();
-          
-          row.innerHTML = `
-            <td>${formattedDate}</td>
-            <td class="editable" data-field="project" data-id="${index}">${session.project}</td>
-            <td>${session.duration_minutes} min</td>
-            <td>${session.start_time}</td>
-            <td>${session.end_time}</td>
-            <td class="editable" data-field="notes" data-id="${index}">${session.notes}</td>
-          `;
-          
-          tbody.appendChild(row);
-        });
-        
-        // Make cells editable on click
-        document.querySelectorAll('.editable').forEach(cell => {
-          cell.addEventListener('click', function() {
-            const value = this.textContent;
-            const field = this.dataset.field;
-            const id = this.dataset.id;
-            
-            // Replace with input
-            this.innerHTML = `<input type="text" value="${value}">`;
-            const input = this.querySelector('input');
-            input.focus();
-            input.select();
-            
-            // Handle blur and Enter key
-            input.addEventListener('blur', async function() {
-              const newValue = this.value;
-              cell.textContent = newValue;
-              
-              // Save to CSV
-              await window.api.updateSession(id, field, newValue);
-            });
-            
-            input.addEventListener('keydown', function(e) {
-              if (e.key === 'Enter') {
-                this.blur();
-              }
-            });
+        // Global variable to track sessions data
+        let allSessions = [];
+  
+        // Tab functionality
+        document.querySelectorAll('.tab').forEach(tab => {
+          tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.dataset.tab).classList.add('active');
           });
         });
         
-        // Initialize charts once data is loaded
-        chartScript.onload = () => initCharts(sessions);
+        // Function to properly destroy charts before recreating them
+        function destroyCharts() {
+          if (yearlyChart) {
+            yearlyChart.destroy();
+            yearlyChart = null;
+          }
+          if (weeklyChart) {
+            weeklyChart.destroy();
+            weeklyChart = null;
+          }
+          if (pieChart) {
+            pieChart.destroy();
+            pieChart = null;
+          }
+        }
         
-      } catch (error) {
-        console.error('Error loading sessions:', error);
-        document.getElementById('sessions-body').innerHTML = `
-          <tr>
-            <td colspan="6" class="no-data">Error loading sessions: ${error.message}</td>
-          </tr>
-        `;
-      }
-    }
-    
-    // Initialize charts
-    function initCharts(sessions) {
-      // Prepare data for weekly chart
-      const weekData = prepareWeeklyData(sessions);
-      
-      // Prepare data for pie chart
-      const pieData = preparePieData(sessions);
-      
-      // Create weekly chart
-      const weeklyCtx = document.getElementById('weekly-chart').getContext('2d');
-      new Chart(weeklyCtx, {
-        type: 'bar',
-        data: {
-          labels: weekData.labels,
-          datasets: weekData.datasets
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              title: {
-                display: true,
-                text: 'Hours'
+        // Function to refresh all dashboard data after changes
+        async function refreshDashboardData() {
+          console.log('Refreshing dashboard data...');
+          try {
+            // Reload sessions data from backend
+            allSessions = await window.api.loadSessions();
+            console.log('Refreshed sessions data:', allSessions);
+            
+            // Update the sessions table
+            updateSessionsTable(allSessions);
+            
+            // Update charts with new data
+            destroyCharts();
+            initCharts(allSessions);
+          } catch (error) {
+            console.error('Error refreshing dashboard data:', error);
+          }
+        }
+        
+        // Update sessions table with data
+        function updateSessionsTable(sessions) {
+          // Sort sessions by date & time (newest first)
+          sessions.sort((a, b) => new Date(b.date + ' ' + b.start_time) - new Date(a.date + ' ' + a.start_time));
+          
+          // Take the most recent 10 sessions
+          const recentSessions = sessions.slice(0, 10);
+          const recentSessionsBody = document.getElementById('recent-sessions-body');
+          recentSessionsBody.innerHTML = '';
+          
+          if (recentSessions.length === 0) {
+            recentSessionsBody.innerHTML = `
+              <tr>
+                <td colspan="6" class="no-data">No sessions recorded yet. Start a session to begin tracking.</td>
+              </tr>
+            `;
+            return;
+          }
+          
+          // Add each session to the table
+          recentSessions.forEach(session => {
+            const row = document.createElement('tr');
+            const dateObj = new Date(session.date);
+            const formattedDate = dateObj.toISOString().slice(0, 10); // YYYY-MM-DD
+            const startTimeWithoutSeconds = session.start_time.slice(0, 5); // Keep only HH:MM
+            const endTimeWithoutSeconds = session.end_time.slice(0, 5);   // Keep only HH:MM
+            
+            row.innerHTML = `
+              <td class="editable" data-field="date" data-id="${session.id}">${formattedDate}</td>
+              <td class="editable" data-field="project" data-id="${session.id}">${session.project}</td>
+              <td data-field="duration_minutes" data-id="${session.id}">${session.duration_minutes}</td>
+              <td class="editable" data-field="start_time" data-id="${session.id}">${startTimeWithoutSeconds}</td>
+              <td class="editable" data-field="end_time" data-id="${session.id}">${endTimeWithoutSeconds}</td>
+              <td class="editable" data-field="notes" data-id="${session.id}">${session.notes || ''}</td>
+            `;
+            recentSessionsBody.appendChild(row);
+          });
+          
+          // Add edit listeners to editable cells
+          addEditListeners();
+        }
+        
+        // Function to add edit listeners to editable cells
+        function addEditListeners() {
+          document.querySelectorAll('#recent-sessions-body td.editable').forEach(cell => {
+            cell.addEventListener('click', function() {
+              // Only proceed if we're not already editing
+              if (this.querySelector('input')) return;
+              
+              const value = this.textContent;
+              const field = this.dataset.field;
+              
+              // Use appropriate input type based on the field
+              if (field === 'start_time' || field === 'end_time') {
+                this.innerHTML = `<input type="time" value="${value}">`;
+              } else if (field === 'date') {
+                this.innerHTML = `<input type="date" value="${value}">`;
+              } else {
+                this.innerHTML = `<input type="text" value="${value}">`;
+              }
+              
+              const input = this.querySelector('input');
+              input.focus();
+              input.select();
+              
+              // Save on blur
+              input.addEventListener('blur', handleCellUpdate);
+              
+              // Save on Enter key
+              input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                  this.blur();
+                }
+              });
+            });
+          });
+        }
+        
+        // Function to handle cell update
+        async function handleCellUpdate() {
+          const cell = this.parentElement;
+          const newValue = this.value;
+          const id = cell.dataset.id;
+          const field = cell.dataset.field;
+          
+          try {
+            // Update cell display immediately
+            cell.textContent = newValue;
+            
+            // Update the value in the backend
+            const updateSuccess = await window.api.updateSession(id, field, newValue);
+            
+            if (!updateSuccess) {
+              throw new Error('Update failed on backend');
+            }
+            
+            // If the edited field affects duration, recalculate it
+            if (field === 'date' || field === 'start_time' || field === 'end_time') {
+              const row = cell.closest('tr');
+              const date = row.querySelector('td[data-field="date"]')?.textContent;
+              const startTime = row.querySelector('td[data-field="start_time"]')?.textContent;
+              const endTime = row.querySelector('td[data-field="end_time"]')?.textContent;
+              
+              if (date && startTime && endTime) {
+                const [year, month, day] = date.split('-').map(Number);
+                const [startHours, startMinutes] = startTime.split(':').map(Number);
+                const [endHours, endMinutes] = endTime.split(':').map(Number);
+                
+                // Create Date objects for start and end times
+                const startDate = new Date(year, month - 1, day, startHours, startMinutes);
+                const endDate = new Date(year, month - 1, day, endHours, endMinutes);
+                
+                // Handle cases where end time might be on the next day
+                if (endDate < startDate) {
+                  endDate.setDate(endDate.getDate() + 1);
+                }
+                
+                const durationMs = endDate.getTime() - startDate.getTime();
+                const durationMinutes = Math.round(durationMs / (1000 * 60));
+                
+                // Update the duration cell in the table
+                const durationCell = row.querySelector('td[data-field="duration_minutes"]');
+                if (durationCell) {
+                  durationCell.textContent = durationMinutes;
+                  
+                  // Update the duration in the backend
+                  await window.api.updateSession(id, 'duration_minutes', durationMinutes);
+                }
               }
             }
+            
+            // After any update, refresh entire data to stay in sync
+            await refreshDashboardData();
+            
+          } catch (error) {
+            console.error('Error updating session:', error);
+            alert('Failed to update session. Please try again.');
+            // Refresh to revert any changes
+            refreshDashboardData();
           }
         }
-      });
-      
-      // Create pie chart
-      const pieCtx = document.getElementById('pie-chart').getContext('2d');
-      new Chart(pieCtx, {
-        type: 'pie',
-        data: {
-          labels: pieData.labels,
-          datasets: [{
-            data: pieData.data,
-            backgroundColor: generateColors(pieData.labels.length)
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false
-        }
-      });
-    }
-    
-    // Prepare data for weekly chart
-    function prepareWeeklyData(sessions) {
-      // Get the current date and start of week
-      const now = new Date();
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
-      
-      // Create date labels for the past 7 days
-      const labels = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(now.getDate() - i);
-        labels.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
-      }
-      
-      // Group sessions by project and day
-      const projectData = {};
-      
-      sessions.forEach(session => {
-        const sessionDate = new Date(session.date);
-        
-        // Only include sessions from the past week
-        if (sessionDate >= startOfWeek) {
-          const dayIndex = 6 - Math.floor((now - sessionDate) / (1000 * 60 * 60 * 24));
+  
+        // Initialize charts
+        function initCharts(sessions) {
+          if (!sessions || sessions.length === 0) return;
           
-          if (!projectData[session.project]) {
-            projectData[session.project] = Array(7).fill(0);
-          }
+          console.log('Initializing charts with data:', sessions);
+          const currentYear = new Date().getFullYear();
+          const yearlySessions = sessions.filter(session => {
+            const sessionDate = new Date(session.date);
+            return sessionDate.getFullYear() === currentYear;
+          });
           
-          // Convert minutes to hours
-          projectData[session.project][dayIndex] += session.duration_minutes / 60;
+          // Prepare data for yearly daily project breakdown chart (stacked bar)
+          const yearlyDailyProjectData = prepareYearlyDailyProjectData(yearlySessions);
+          yearlyChart = createStackedBarChart('yearly-chart', 
+                                          yearlyDailyProjectData.labels, 
+                                          yearlyDailyProjectData.datasets, 
+                                          'Hours', 
+                                          yearlyDailyProjectData.monthLabels);
+          
+          // Prepare data for weekly project breakdown chart (stacked bar)
+          const weeklyProjectData = prepareWeeklyProjectData(yearlySessions);
+          weeklyChart = createStackedBarChart('weekly-chart', 
+                                          weeklyProjectData.labels, 
+                                          weeklyProjectData.datasets, 
+                                          'Hours');
+          
+          // Prepare data for pie chart (current year)
+          const yearlyPieData = preparePieData(yearlySessions);
+          pieChart = createPieChart('pie-chart', 
+                                yearlyPieData.labels, 
+                                yearlyPieData.data);
         }
-      });
-      
-      // Create datasets for chart
-      const datasets = Object.keys(projectData).map((project, index) => {
-        return {
-          label: project,
-          data: projectData[project],
-          backgroundColor: getColor(index)
-        };
-      });
-      
-      return { labels, datasets };
-    }
-    
-    // Prepare data for pie chart
-    function preparePieData(sessions) {
-      // Group by project
-      const projectTotals = {};
-      
-      sessions.forEach(session => {
-        if (!projectTotals[session.project]) {
-          projectTotals[session.project] = 0;
+  
+        // Helper function to create a stacked bar chart
+        function createStackedBarChart(canvasId, labels, datasets, yAxisLabel, monthLabels) {
+          const ctx = document.getElementById(canvasId).getContext('2d');
+          return new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: datasets
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                x: {
+                  stacked: true,
+                  ticks: {
+                    color: '#E0E0E0',
+                    callback: function(value, index, ticks) {
+                      const label = this.getLabelForValue(index);
+                      return monthLabels?.[label] || label;
+                    },
+                    maxTicksLimit: 12
+                  },
+                  grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                },
+                y: {
+                  stacked: true,
+                  beginAtZero: true,
+                  title: { display: true, text: yAxisLabel, color: '#E0E0E0' },
+                  ticks: {
+                    color: '#E0E0E0',
+                    callback: function(value) {
+                      return value.toFixed(1);
+                    }
+                  },
+                  grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                }
+              },
+              plugins: {
+                legend: { labels: { color: '#E0E0E0' } },
+                tooltip: {
+                  callbacks: {
+                    title: function(context) {
+                      const dateStr = context[0].label;
+                      try {
+                        const date = new Date(dateStr);
+                        if (!isNaN(date.getTime())) {
+                          const options = { weekday: 'short', day: 'numeric', month: 'long' };
+                          return date.toLocaleDateString('en-GB', options);
+                        }
+                        return dateStr;
+                      } catch (e) {
+                        return dateStr;
+                      }
+                    },
+                    label: function(context) {
+                      let label = context.dataset.label || '';
+                      if (label) {
+                        label += ': ';
+                      }
+                      if (context.parsed.y !== null) {
+                        label += context.parsed.y.toFixed(1) + ' hours';
+                      }
+                      return label;
+                    }
+                  }
+                }
+              }
+            }
+          });
         }
-        
-        projectTotals[session.project] += session.duration_minutes;
-      });
-      
-      const labels = Object.keys(projectTotals);
-      const data = labels.map(label => projectTotals[label] / 60); // Convert to hours
-      
-      return { labels, data };
-    }
-    
-    // Generate colors for charts
-    function generateColors(count) {
-      const colors = [
-        '#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
-        '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC'
-      ];
-      
-      return Array(count).fill().map((_, i) => colors[i % colors.length]);
-    }
-    
-    function getColor(index) {
-      const colors = [
-        '#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
-        '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC'
-      ];
-      
-      return colors[index % colors.length];
-    }
-    
-    // Load sessions when the page loads
-    document.addEventListener('DOMContentLoaded', loadSessions);
-  </script>
-</body>
+  
+        // Helper function to create a pie chart
+        function createPieChart(canvasId, labels, data) {
+          const ctx = document.getElementById(canvasId).getContext('2d');
+          return new Chart(ctx, {
+            type: 'pie',
+            data: {
+              labels: labels,
+              datasets: [{
+                data: data,
+                backgroundColor: generateColors(labels.length),
+                borderColor: 'transparent'
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  labels: { color: '#E0E0E0' }
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function(context) {
+                      const label = context.label || '';
+                      const value = context.formattedValue || '';
+                      return `${label}: ${parseFloat(value).toFixed(1)} hours`;
+                    }
+                  }
+                }
+              }
+            }
+          });
+        }
+  
+        // Prepare data for yearly daily project breakdown chart (stacked bar)
+        function prepareYearlyDailyProjectData(sessions) {
+          const currentYear = new Date().getFullYear();
+          const daysInYear = Array.from({ length: 365 }, (_, i) => {
+            const date = new Date(currentYear, 0, i + 1);
+            return date.toISOString().slice(0, 10); //YYYY-MM-DD
+          });
+
+          const monthLabels = {};
+          daysInYear.forEach(dateStr => {
+            const date = new Date(dateStr);
+            if (date.getDate() === 1) {
+              monthLabels[dateStr] = date.toLocaleDateString('en-GB', { month: 'short' });
+            }
+          });
+
+          const projectData = {};
+          sessions.forEach(session => {
+            const date = session.date;
+            const project = session.project;
+            const durationHours = session.duration_minutes / 60;
+
+            if (!projectData[project]) {
+              projectData[project] = {};
+            }
+            projectData[project][date] = (projectData[project][date] || 0) + durationHours;
+          });
+
+          const datasets = Object.keys(projectData).map((project, index) => {
+            const data = daysInYear.map(day => projectData[project]?.[day] || 0);
+            return {
+              label: project,
+              data: data,
+              backgroundColor: getColor(index)
+            };
+          });
+
+          return { labels: daysInYear, monthLabels, datasets };
+        }
+  
+        // Prepare data for weekly project breakdown chart (stacked bar)
+        function prepareWeeklyProjectData(sessions) {
+          const currentYear = new Date().getFullYear();
+          const weeksInYear = getWeeksInYear(currentYear);
+          const weekLabels = Array.from({ length: weeksInYear }, (_, i) => `Week ${i + 1}`);
+  
+          const projectData = {};
+          sessions.forEach(session => {
+            const sessionDate = new Date(session.date);
+            const year = sessionDate.getFullYear();
+            const weekNumber = getWeekNumber(sessionDate);
+            const project = session.project;
+            const durationHours = session.duration_minutes / 60;
+  
+            if (year === currentYear) {
+              if (!projectData[project]) {
+                projectData[project] = {};
+              }
+              projectData[project][weekNumber] = (projectData[project][weekNumber] || 0) + durationHours;
+            }
+          });
+  
+          const datasets = Object.keys(projectData).map((project, index) => {
+            const data = weekLabels.map((label, weekIndex) => projectData[project]?.[weekIndex + 1] || 0);
+            return {
+              label: project,
+              data: data,
+              backgroundColor: getColor(index)
+            };
+          });
+  
+          return { labels: weekLabels, datasets };
+        }
+
+        // Prepare data for pie chart (current year)
+        function preparePieData(sessions) {
+          const projectTotals = {};
+          sessions.forEach(session => {
+            if (!projectTotals[session.project]) {
+              projectTotals[session.project] = 0;
+            }
+            projectTotals[session.project] += session.duration_minutes;
+          });
+
+          const labels = Object.keys(projectTotals);
+          const data = labels.map(label => projectTotals[label] / 60); // Convert to hours
+
+          return { labels, data };
+        }
+  
+        // Helper function to get the week number of a date
+        function getWeekNumber(d) {
+          d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+          const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+          return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        }
+  
+        // Helper function to get the number of weeks in a year
+        function getWeeksInYear(year) {
+          const date = new Date(year, 11, 31);
+          return getWeekNumber(date);
+        }
+  
+        // Helper function to generate a single color
+        function getColor(index) {
+          const colors = [
+            '#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
+            '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC'
+          ];
+          return colors[index % colors.length];
+        }
+  
+        // Helper function to generate an array of colors
+        function generateColors(count) {
+          const colors = [
+            '#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
+            '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC'
+          ];
+          return Array(count).fill().map((_, i) => colors[i % colors.length]);
+        }
+  
+        // Load sessions when the page loads
+        document.addEventListener('DOMContentLoaded', refreshDashboardData);
+      </script>
+  </body>
 </html>

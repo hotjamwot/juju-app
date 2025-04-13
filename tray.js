@@ -1,6 +1,7 @@
-const { Tray, Menu, app, dialog, BrowserWindow } = require('electron');
+const { Tray, Menu, app, dialog, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+
 
 // File paths
 const CSV_PATH = path.join(__dirname, 'data.csv');
@@ -14,15 +15,16 @@ let isSessionActive = false;
 let currentProject = null;
 let sessionStartTime = null;
 let createDashboardFn = null;
+let timerIntervalId = null;
 
 // Format duration nicely:
-function formatDuration(ms) {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
+  function formatDuration(ms) {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
   
-  return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
-}
+    return `${hours}h ${minutes % 60}m`;
+  }
 
 // Make sure our data files exist
 function ensureFiles() {
@@ -74,7 +76,7 @@ function createTray(dashboardCreator) {
   } else {
     updateTrayMenu(); // Still update menut if tray already exists
   }  
-  
+
   return tray;
 }
 
@@ -85,7 +87,10 @@ function startSession(project) {
 
   currentProject = project;
   isSessionActive = true;
-  sessionStartTime = new Date(); // Change this line
+  sessionStartTime = new Date();
+  timerIntervalId = setInterval(() => {
+    updateTrayMenu();
+  }, 1000); // Update every 1 second (1000 milliseconds) 
   
   // Change the icon to active
   if (tray) {
@@ -99,7 +104,10 @@ function startSession(project) {
 // End the current session and log it
 function endSession(notes = "") {
   if (!isSessionActive) return;
-
+  if (timerIntervalId) {
+    clearInterval(timerIntervalId);
+    timerIntervalId = null;
+  }
   console.log('Ending session, currentProject:', currentProject); // Add this line
 
   const endTime = new Date();
@@ -114,7 +122,7 @@ function endSession(notes = "") {
   const sanitizedNotes = notes.replace(/"/g, '""');
 
   // Create CSV line with the notes field
-  const csvLine = `${date},${startTimeStr},${endTimeStr},${durationMinutes},"${currentProject}","${sanitizedNotes}"\n`; // Error likely here
+  const csvLine = `${date},${startTimeStr},${endTimeStr},${durationMinutes},"${currentProject}","${sanitizedNotes}"\n`;
 
   console.log('Saving session:', csvLine);
 
@@ -147,8 +155,8 @@ function getSessionDuration() {
 function showNotesDialog() {
   return new Promise((resolve) => {
     const notesWin = new BrowserWindow({
-      width: 400,
-      height: 300,
+      width: 800,
+      height: 600,
       title: 'Session Notes',
       minimizable: false,
       maximizable: false,
@@ -158,88 +166,54 @@ function showNotesDialog() {
         contextIsolation: false
       }
     });
+
+    const stylesPath = path.join(__dirname, 'style.css');
+let stylesheetContent = '';
+try {
+  stylesheetContent = fs.readFileSync(stylesPath, 'utf8');
+} catch (error) {
+  console.error('Error reading stylesheet:', error);
+}
     
     // Create HTML content for the notes dialog
     const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Session Notes</title>
-        <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
-            padding: 20px;
-            margin: 0;
-            color: #333;
-          }
-          h2 {
-            margin-top: 0;
-            margin-bottom: 5px;
-          }
-          p {
-            margin-bottom: 15px;
-            color: #666;
-          }
-          textarea {
-            width: 100%;
-            height: 120px;
-            margin-bottom: 20px;
-            padding: 10px;
-            box-sizing: border-box;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-family: inherit;
-            font-size: 14px;
-          }
-          .buttons {
-            text-align: right;
-          }
-          button {
-            background-color: #f5f5f5;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 8px 15px;
-            font-size: 14px;
-            cursor: pointer;
-            margin-left: 10px;
-          }
-          button.primary {
-            background-color: #0078d7;
-            color: white;
-            border-color: #0078d7;
-          }
-        </style>
-      </head>
-      <body>
-        <h2>Session Complete</h2>
-        <p>Project: ${currentProject}<br>Duration: ${getSessionDuration()} minutes</p>
-        <textarea id="notesInput" placeholder="What did you accomplish? (optional)"></textarea>
-        <div class="buttons">
-          <button id="cancelBtn">Cancel</button>
-          <button id="saveBtn" class="primary">Save Session</button>
-        </div>
-        <script>
-          const { ipcRenderer } = require('electron');
-          
-          document.getElementById('saveBtn').addEventListener('click', () => {
-            const notes = document.getElementById('notesInput').value;
-            ipcRenderer.send('save-notes', notes);
-          });
-          
-          document.getElementById('cancelBtn').addEventListener('click', () => {
-            ipcRenderer.send('cancel-notes');
-          });
-        </script>
-      </body>
-      </html>
-    `;
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <title>Session Notes</title>
+    <style>
+      ${stylesheetContent}
+    </style>
+  </head>
+  <body>
+    <h2>Juju Complete</h2>
+    <p>Project: ${currentProject}<br>Duration: ${getSessionDuration()} minutes</p>
+    <textarea id="notesInput" placeholder="What did you do?"></textarea>
+    <div class="buttons">
+      <button id="cancelBtn">Cancel</button>
+      <button id="saveBtn" class="primary">Save Juju</button>
+    </div>
+    <script>
+      const { ipcRenderer } = require('electron');
+
+      document.getElementById('saveBtn').addEventListener('click', () => {
+        const notes = document.getElementById('notesInput').value;
+        ipcRenderer.send('save-notes', notes);
+      });
+
+      document.getElementById('cancelBtn').addEventListener('click', () => {
+        ipcRenderer.send('cancel-notes');
+      });
+    </script>
+  </body>
+  </html>
+`;
     
     // Load the HTML content
     notesWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
     
     // Handle IPC events
-    const { ipcMain } = require('electron');
-    
+        
     ipcMain.once('save-notes', (event, notes) => {
       notesWin.close();
       resolve(notes);

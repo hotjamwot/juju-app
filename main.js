@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, globalShortcut } = require('electron');
 const path = require('path');
 const { createTray} = require('./tray');
 const fs = require('fs');
-
+const fsPromises = fs.promises;
 
 // Keep a global reference of windows
 let dashboardWindow = null;
@@ -20,8 +20,8 @@ function createDashboardWindow() {
   }
   
   dashboardWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1200,
+    height: 800,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, // Protection from prototype pollution
@@ -40,20 +40,19 @@ function createDashboardWindow() {
 
 // Create tray when Electron is ready
 app.whenReady().then(() => {
-// Start global shortcut  
-const trayInstance = createTray(createDashboardWindow); // Make sure you're capturing the return value
+  // Start global shortcut  
+  const trayInstance = createTray(createDashboardWindow);
 
   // Register the global shortcut
   const ret = globalShortcut.register('Shift+Option+Command+J', () => {
     if (trayInstance) {
-      trayInstance.popUpContextMenu(); // This will open the context menu
+      trayInstance.popUpContextMenu();
     }
   });
 
   if (!ret) {
     console.log('Global shortcut registration failed.');
   }
-  createTray(createDashboardWindow);
 });
 
 app.on('will-quit', () => {
@@ -61,42 +60,29 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
 });
 
-// Load sessions from CSV
-
-ipcMain.handle('load-sessions', async () => {
+// Load sessions from CSV function
+async function loadSessionsFromCSV() {
+  const CSV_PATH = path.join(__dirname, 'data.csv');
   try {
-    const CSV_PATH = path.join(__dirname, 'data.csv');
-    const data = fs.readFileSync(CSV_PATH, 'utf8');
-    return data;
-  } catch (error) {
-    console.error('Error loading sessions:', error);
-    return '';
-  }
-
-try {
-    const csvData = fs.readFileSync(CSV_PATH, 'utf8');
+    const csvData = await fsPromises.readFile(CSV_PATH, 'utf8');
     const rows = csvData.trim().split('\n');
-    
-    // Skip header row
+
     if (rows.length <= 1) {
       return [];
     }
-    
+
     const headers = rows[0].split(',');
     const sessions = [];
-    
-    // Parse CSV rows
+
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      
-      // Handle quoted fields that might contain commas
       const values = [];
       let inQuotes = false;
       let currentValue = '';
-      
+
       for (let j = 0; j < row.length; j++) {
         const char = row[j];
-        
+
         if (char === '"') {
           inQuotes = !inQuotes;
         } else if (char === ',' && !inQuotes) {
@@ -106,16 +92,11 @@ try {
           currentValue += char;
         }
       }
-      
-      // Add the last value
       values.push(currentValue);
-      
-      // Create session object
+
       const session = {};
       headers.forEach((header, index) => {
-        // Handle the case where there might be extra commas in quoted fields
         if (index < values.length) {
-          // Strip quotes from quoted fields
           let value = values[index];
           if (value.startsWith('"') && value.endsWith('"')) {
             value = value.substring(1, value.length - 1);
@@ -123,53 +104,71 @@ try {
           session[header] = value;
         }
       });
+
+      // Add row index as id for reference
+      session.id = i - 1;
       
-      // Convert duration to number
+      // Convert duration_minutes to number for calculations
       if (session.duration_minutes) {
         session.duration_minutes = parseInt(session.duration_minutes);
       }
-      
+
       sessions.push(session);
     }
-    
     return sessions;
   } catch (error) {
     console.error('Error loading sessions:', error);
     throw new Error('Failed to load sessions data');
   }
+}
+
+// Load sessions call
+ipcMain.handle('load-sessions', async () => {
+  return await loadSessionsFromCSV();
 });
 
 // Update session in CSV
 ipcMain.handle('update-session', async (event, id, field, value) => {
+  const CSV_PATH = path.join(__dirname, 'data.csv');
   try {
-    // Load all sessions
-    const sessions = await ipcMain.handlers['load-sessions']();
+    // Convert id to number to ensure proper comparison
+    id = parseInt(id, 10);
     
-    // Update the specified session
-    if (id >= 0 && id < sessions.length) {
-      sessions[id][field] = value;
-      
-      // Rewrite CSV file
-      const headers = Object.keys(sessions[0]);
-      const csvContent = [
-        headers.join(','),
-        ...sessions.map(session => {
-          return headers.map(header => {
-            // Wrap values with commas in quotes
-            const value = session[header] || '';
-            return value.toString().includes(',') ? `"${value}"` : value;
-          }).join(',');
-        })
-      ].join('\n');
-      
-      fs.writeFileSync(CSV_PATH, csvContent);
-      return true;
+    // Load all sessions
+    const sessions = await loadSessionsFromCSV();
+    
+    // Find session by id
+    const sessionIndex = sessions.findIndex(s => s.id === id);
+    
+    if (sessionIndex === -1) {
+      console.error('Session not found with ID:', id);
+      return false;
     }
     
-    return false;
+    // Update the field
+    sessions[sessionIndex][field] = value;
+    
+    // Create CSV content
+    const headers = Object.keys(sessions[0]).filter(key => key !== 'id'); // Exclude the id field we added
+    const csvContent = [
+      headers.join(','),
+      ...sessions.map(session => {
+        return headers.map(header => {
+          const value = session[header] || '';
+          // Properly quote values with commas
+          return value.toString().includes(',') ? `"${value}"` : value;
+        }).join(',');
+      })
+    ].join('\n');
+
+    // Write to file with promise to ensure completion
+    await fsPromises.writeFile(CSV_PATH, csvContent, 'utf8');
+    
+    console.log(`Updated session ${id}, field: ${field}`);
+    return true;
   } catch (error) {
     console.error('Error updating session:', error);
-    throw new Error('Failed to update session');
+    throw new Error('Failed to update session: ' + error.message);
   }
 });
 
@@ -181,8 +180,8 @@ function createDashboard() {
   }
   
   dashboardWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1200,
+    height: 800,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
