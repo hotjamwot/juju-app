@@ -15,6 +15,15 @@ let currentProject = null;
 let sessionStartTime = null;
 let createDashboardFn = null;
 
+// Format duration nicely:
+function formatDuration(ms) {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  
+  return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+}
+
 // Make sure our data files exist
 function ensureFiles() {
   // Create CSV file if it doesn't exist
@@ -49,25 +58,40 @@ function createTray(dashboardCreator) {
   ensureFiles();
   createDashboardFn = dashboardCreator;
   
+  if (!tray) {
   // Use the idle icon initially
   tray = new Tray(ICON_IDLE_PATH);
+  // Show menu on click
+  tray.on('click', () => {
+    tray.popUpContextMenu();
+  });
+  
+  tray.on('right-click', () => {
+    tray.popUpContextMenu()
+  });
   
   updateTrayMenu();
+  } else {
+    updateTrayMenu(); // Still update menut if tray already exists
+  }  
   
   return tray;
 }
 
-// Start a new work session
-function startSession(projectName) {
-  currentProject = projectName;
-  sessionStartTime = new Date();
+function startSession(project) {
+  if (isSessionActive) {
+    return;
+  }
+
+  currentProject = project;
   isSessionActive = true;
+  sessionStartTime = new Date(); // Change this line
   
   // Change the icon to active
   if (tray) {
     tray.setImage(ICON_ACTIVE_PATH);
   }
-  
+
   updateTrayMenu();
   console.log('Session started:', { project: currentProject, time: sessionStartTime });
 }
@@ -75,35 +99,38 @@ function startSession(projectName) {
 // End the current session and log it
 function endSession(notes = "") {
   if (!isSessionActive) return;
-  
+
+  console.log('Ending session, currentProject:', currentProject); // Add this line
+
   const endTime = new Date();
   const durationMinutes = Math.round((endTime - sessionStartTime) / 60000);
-  
+
   // Format for CSV
   const date = sessionStartTime.toISOString().split('T')[0];
   const startTimeStr = sessionStartTime.toTimeString().split(' ')[0];
   const endTimeStr = endTime.toTimeString().split(' ')[0];
-  
+
   // Sanitize notes for CSV (replace any double quotes with two double quotes)
   const sanitizedNotes = notes.replace(/"/g, '""');
-  
+
   // Create CSV line with the notes field
-  const csvLine = `${date},${startTimeStr},${endTimeStr},${durationMinutes},"${currentProject}","${sanitizedNotes}"\n`;
-  
+  const csvLine = `${date},${startTimeStr},${endTimeStr},${durationMinutes},"${currentProject}","${sanitizedNotes}"\n`; // Error likely here
+
   console.log('Saving session:', csvLine);
-  
+
   // Append to CSV file
   fs.appendFileSync(CSV_PATH, csvLine);
-  
+
   // Reset session
   isSessionActive = false;
+  currentProject = null;
   sessionStartTime = null;
-  
+
   // Change the icon back to idle
   if (tray) {
     tray.setImage(ICON_IDLE_PATH);
   }
-  
+
   updateTrayMenu();
   console.log('Session ended and saved');
 }
@@ -232,9 +259,10 @@ function showNotesDialog() {
   });
 }
 
+
 // Update the tray menu based on current state
 function updateTrayMenu() {
-  const projects = getProjects();
+  const projects = JSON.parse(fs.readFileSync(PROJECTS_PATH, 'utf8'));
   const projectItems = projects.map(project => {
     return {
       label: project.name,
@@ -248,46 +276,46 @@ function updateTrayMenu() {
       }
     };
   });
-  
+
+  // Create submenu items for each project
+  const projectMenuItems = projects.map(project => {
+    return {
+      label: project.name,
+      click: () => startSession(project.name)
+    };
+  });
+
+  // Create the menu
   const contextMenu = Menu.buildFromTemplate([
-    { 
-      label: isSessionActive ? `Stop (${currentProject})` : 'Start Session', 
-      click: async () => {
+    {
+      label: isSessionActive ? `Stop Session (${currentProject} ${formatDuration(Date.now() - sessionStartTime)})` : 'Start Session',
+      submenu: isSessionActive ? null : projectMenuItems,
+      click: () => { // Add this click handler for stopping the session
         if (isSessionActive) {
-          const notes = await showNotesDialog();
-          if (notes !== null) {
+          showNotesDialog().then(notes => {
             endSession(notes);
-          }
-        } else {
-          if (!currentProject && projects.length > 0) {
-            currentProject = projects[0].name;
-          }
-          if (currentProject) {
-            startSession(currentProject);
-          }
+          });
         }
-      } 
+      }
     },
     { type: 'separator' },
-    { label: 'Project', submenu: projectItems },
-    { type: 'separator' },
-    { 
-      label: 'Dashboard', 
+    {
+      label: 'View Dashboard',
       click: () => {
         if (createDashboardFn) {
           createDashboardFn();
         }
-      } 
+      }
     },
     { type: 'separator' },
-    { 
-      label: 'Quit', 
-      click: () => app.quit() 
+    {
+      label: 'Quit',
+      click: () => app.quit()
     }
   ]);
 
-  tray.setToolTip(isSessionActive ? `Tracking: ${currentProject}` : 'Juju');
   tray.setContextMenu(contextMenu);
+  tray.setToolTip(isSessionActive ? `Tracking: ${currentProject}` : 'Juju');
 }
 
 module.exports = { createTray };
