@@ -1,0 +1,14 @@
+{
+  "name": "juju",
+  "version": "1.0.0",
+  "description": "A minimal system tray time tracker for getting into the juju.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "HJW",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.3.3"
+  }
+}
