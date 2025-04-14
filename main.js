@@ -12,6 +12,28 @@ if (process.platform === 'darwin') {
   app.dock.hide();
 }
 
+// Get the user data directory path
+const userDataPath = path.join(app.getPath('userData'), 'juju');
+const dataFilePath = path.join(userDataPath, 'data.csv');
+
+// Create the directory if it doesn't exist
+function ensureDirectoryExists() {
+  if (!fs.existsSync(userDataPath)) {
+    fs.mkdirSync(userDataPath, { recursive: true });
+  }
+  
+  // If data.csv doesn't exist in the user data directory, create it or copy from the app
+  if (!fs.existsSync(dataFilePath)) {
+    // Default empty data.csv or copy from your app resources
+    const defaultDataPath = path.join(__dirname, 'data.csv');
+    if (fs.existsSync(defaultDataPath)) {
+      fs.copyFileSync(defaultDataPath, dataFilePath);
+    } else {
+      fs.writeFileSync(dataFilePath, ''); // Create empty file
+    }
+  }
+}
+
 // Create the dashboard window
 function createDashboardWindow() {
   if (dashboardWindow) {
@@ -40,6 +62,11 @@ function createDashboardWindow() {
 
 // Create tray when Electron is ready
 app.whenReady().then(() => {
+  ensureDirectoryExists();
+  console.log('Data file path (should be in user data):', dataFilePath);
+  console.log('Directory exists:', fs.existsSync(path.dirname(dataFilePath)));
+  console.log('File exists:', fs.existsSync(dataFilePath));
+  
   // Start global shortcut  
   const trayInstance = createTray(createDashboardWindow);
 
@@ -62,7 +89,7 @@ app.on('will-quit', () => {
 
 // Load sessions from CSV function
 async function loadSessionsFromCSV() {
-  const CSV_PATH = path.join(__dirname, 'data.csv');
+  const CSV_PATH = dataFilePath; 
   try {
     const csvData = await fsPromises.readFile(CSV_PATH, 'utf8');
     const rows = csvData.trim().split('\n');
@@ -129,13 +156,15 @@ ipcMain.handle('load-sessions', async () => {
 
 // Update session in CSV
 ipcMain.handle('update-session', async (event, id, field, value) => {
-  const CSV_PATH = path.join(__dirname, 'data.csv');
+  const CSV_PATH = dataFilePath;
   try {
     // Convert id to number to ensure proper comparison
     id = parseInt(id, 10);
+    console.log(`Updating session ${id}, field: ${field}, value: ${value}`);
     
     // Load all sessions
     const sessions = await loadSessionsFromCSV();
+    console.log('Loaded sessions count:', sessions.length);
     
     // Find session by id
     const sessionIndex = sessions.findIndex(s => s.id === id);
@@ -145,8 +174,9 @@ ipcMain.handle('update-session', async (event, id, field, value) => {
       return false;
     }
     
-    // Update the field
+    // Update the field in the session object
     sessions[sessionIndex][field] = value;
+    console.log('Updated session object:', sessions[sessionIndex]);
     
     // Create CSV content
     const headers = Object.keys(sessions[0]).filter(key => key !== 'id'); // Exclude the id field we added
@@ -162,12 +192,13 @@ ipcMain.handle('update-session', async (event, id, field, value) => {
     ].join('\n');
 
     // Write to file with promise to ensure completion
+    console.log('Writing to file:', CSV_PATH);
     await fsPromises.writeFile(CSV_PATH, csvContent, 'utf8');
     
-    console.log(`Updated session ${id}, field: ${field}`);
+    console.log(`Successfully updated session ${id}, field: ${field}`);
     return true;
   } catch (error) {
-    console.error('Error updating session:', error);
+    console.error('Error updating session:', error.message, error.stack);
     throw new Error('Failed to update session: ' + error.message);
   }
 });

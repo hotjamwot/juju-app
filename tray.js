@@ -119,7 +119,7 @@ function endSession(notes = "") {
   const endTimeStr = endTime.toTimeString().split(' ')[0];
 
   // Sanitize notes for CSV (replace any double quotes with two double quotes)
-  const sanitizedNotes = notes.replace(/"/g, '""');
+  const sanitizedNotes = notes ? notes.replace(/"/g, '""') : '';  // Handle null or undefined
 
   // Create CSV line with the notes field
   const csvLine = `${date},${startTimeStr},${endTimeStr},${durationMinutes},"${currentProject}","${sanitizedNotes}"\n`;
@@ -127,8 +127,16 @@ function endSession(notes = "") {
   console.log('Saving session:', csvLine);
 
   // Append to CSV file
-  fs.appendFileSync(CSV_PATH, csvLine);
+  let csvContent = csvLine;
 
+  // Ensure the file ends with a newline
+  const lastChar = fs.readFileSync(CSV_PATH).slice(-1).toString();
+  if (lastChar !== '\n') {
+    csvContent = '\n' + csvLine;
+  }
+  
+  fs.appendFileSync(CSV_PATH, csvContent);
+  
   // Reset session
   isSessionActive = false;
   currentProject = null;
@@ -175,14 +183,75 @@ try {
   console.error('Error reading stylesheet:', error);
 }
     
-    // Create HTML content for the notes dialog
-    const htmlContent = `
+// Create HTML content for the notes dialog
+const htmlContent = `
   <!DOCTYPE html>
   <html>
   <head>
     <title>Session Notes</title>
     <style>
-      ${stylesheetContent}
+      /* Custom styles to match your existing theme */
+      body {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 200;
+        background-color: #1E1E1E; /* Dark charcoal background */
+        color: #c4adad; /* Near-white font */
+        margin: 0;
+        padding: 20px;
+        text-align: center; /* Center content */
+      }
+
+      h2 {
+        font-size: 1.5em;
+        color: #c4adad; /* Near-white font */
+      }
+
+      p {
+        font-size: 1.2em;
+        color: #c4adad; /* Near-white font */
+      }
+
+      textarea {
+        width: 80%; /* Slightly narrower for a cleaner look */
+        height: 150px;
+        padding: 10px;
+        font-size: 1em;
+        border: 1px solid #444; /* Dark border for subtle contrast */
+        border-radius: 4px;
+        background-color: #2e2e2e; /* Slightly darker background for textarea */
+        color: #c4adad; /* Near-white font */
+        box-sizing: border-box;
+        resize: vertical;
+      }
+
+      .buttons {
+        margin-top: 20px;
+        text-align: center;
+      }
+
+      button {
+        padding: 10px 20px;
+        font-size: 1em;
+        cursor: pointer;
+        border-radius: 4px;
+        border: 1px solid #444; /* Dark border */
+        margin: 5px;
+        background-color: #333; /* Charcoal button color */
+        color: #c4adad; /* Near-white text */
+        transition: background-color 0.3s;
+      }
+
+      button.primary {
+        background-color: #444; /* Slightly lighter charcoal for primary button */
+      }
+
+      button:hover {
+        background-color: #555; /* Darken on hover */
+      }
+
+      button.primary:hover {
+        background-color: #666; /* Darken primary button on hover */
+      }
     </style>
   </head>
   <body>
@@ -208,9 +277,10 @@ try {
   </body>
   </html>
 `;
-    
-    // Load the HTML content
-    notesWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+// Load the HTML content
+notesWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
     
     // Handle IPC events
         

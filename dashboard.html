@@ -248,7 +248,7 @@
             }
             
             // After any update, refresh entire data to stay in sync
-            await refreshDashboardData();
+            setTimeout(refreshDashboardData, 200); // delay by 200ms
             
           } catch (error) {
             console.error('Error updating session:', error);
