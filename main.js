@@ -1,231 +1,538 @@
 const { app, BrowserWindow, ipcMain, globalShortcut } = require('electron');
 const path = require('path');
-const { createTray} = require('./tray');
-const fs = require('fs');
-const fsPromises = fs.promises;
+const fsPromises = require('fs').promises; // Use promises version consistently
+const { createTray } = require('./tray');
+const Papa = require('papaparse');
 
-// Keep a global reference of windows
+// --- Global Variables ---
 let dashboardWindow = null;
+let projectManagerWindow = null;
+let trayInstance = null; // Keep tray instance accessible if needed later
 
-// Hide dock icon on Mac
+// --- Constants ---
+const USER_DATA_PATH = path.join(app.getPath('userData'), 'juju');
+const DATA_FILE_PATH = path.join(USER_DATA_PATH, 'data.csv');
+const PROJECTS_FILE_PATH = path.join(USER_DATA_PATH, 'projects.json');
+
+// --- Platform Specific Setup ---
 if (process.platform === 'darwin') {
   app.dock.hide();
 }
 
-// Get the user data directory path
-const userDataPath = path.join(app.getPath('userData'), 'juju');
-const dataFilePath = path.join(userDataPath, 'data.csv');
+// --- Utility Functions ---
 
-// Create the directory if it doesn't exist
-function ensureDirectoryExists() {
-  if (!fs.existsSync(userDataPath)) {
-    fs.mkdirSync(userDataPath, { recursive: true });
-  }
-  
-  // If data.csv doesn't exist in the user data directory, create it or copy from the app
-  if (!fs.existsSync(dataFilePath)) {
-    // Default empty data.csv or copy from your app resources
-    const defaultDataPath = path.join(__dirname, 'data.csv');
-    if (fs.existsSync(defaultDataPath)) {
-      fs.copyFileSync(defaultDataPath, dataFilePath);
-    } else {
-      fs.writeFileSync(dataFilePath, ''); // Create empty file
+/**
+ * Ensures the user data directory and necessary files (data.csv, projects.json) exist.
+ * Creates them with defaults if they don't.
+ */
+async function ensureDataFilesExist() {
+  try {
+    // Ensure directory exists
+    await fsPromises.mkdir(USER_DATA_PATH, { recursive: true });
+    console.log(`User data directory ensured: ${USER_DATA_PATH}`);
+
+    // Ensure data.csv exists
+    try {
+      await fsPromises.access(DATA_FILE_PATH);
+      console.log(`data.csv found at: ${DATA_FILE_PATH}`);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        console.log('data.csv not found, creating default.');
+        const defaultDataPath = path.join(__dirname, 'data.csv'); // Check for bundled default
+        try {
+          await fsPromises.access(defaultDataPath);
+          await fsPromises.copyFile(defaultDataPath, DATA_FILE_PATH);
+          console.log('Copied default data.csv.');
+        } catch (copyError) {
+          await fsPromises.writeFile(DATA_FILE_PATH, '', 'utf8'); // Create empty if no default
+          console.log('Created empty data.csv.');
+        }
+      } else {
+        throw error; // Re-throw other access errors
+      }
     }
+
+    // Ensure projects.json exists
+    try {
+      await fsPromises.access(PROJECTS_FILE_PATH);
+      console.log(`projects.json found at: ${PROJECTS_FILE_PATH}`);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        console.log('projects.json not found, creating default empty array.');
+        await fsPromises.writeFile(PROJECTS_FILE_PATH, JSON.stringify([], null, 2), 'utf8');
+      } else {
+        throw error; // Re-throw other access errors
+      }
+    }
+  } catch (err) {
+    console.error('Error ensuring data files exist:', err);
+    // Consider more robust error handling? Maybe quit the app?
+    app.quit(); // Example: Quit if essential setup fails
   }
 }
 
-// Create the dashboard window
+// --- Window Creation Functions ---
+
 function createDashboardWindow() {
   if (dashboardWindow) {
     dashboardWindow.focus();
     return dashboardWindow;
   }
-  
-  dashboardWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true, // Protection from prototype pollution
-      nodeIntegration: false  // Enhanced security
-    }
-  });
-  
-  dashboardWindow.loadFile('dashboard.html');
-  
-  dashboardWindow.on('closed', () => {
-    dashboardWindow = null;
-  });
-  
-  return dashboardWindow;
-}
 
-// Create tray when Electron is ready
-app.whenReady().then(() => {
-  ensureDirectoryExists();
-  console.log('Data file path (should be in user data):', dataFilePath);
-  console.log('Directory exists:', fs.existsSync(path.dirname(dataFilePath)));
-  console.log('File exists:', fs.existsSync(dataFilePath));
-  
-  // Start global shortcut  
-  const trayInstance = createTray(createDashboardWindow);
-
-  // Register the global shortcut
-  const ret = globalShortcut.register('Shift+Option+Command+J', () => {
-    if (trayInstance) {
-      trayInstance.popUpContextMenu();
-    }
-  });
-
-  if (!ret) {
-    console.log('Global shortcut registration failed.');
-  }
-});
-
-app.on('will-quit', () => {
-  // Unregister all shortcuts
-  globalShortcut.unregisterAll();
-});
-
-// Load sessions from CSV function
-async function loadSessionsFromCSV() {
-  const CSV_PATH = dataFilePath; 
-  try {
-    const csvData = await fsPromises.readFile(CSV_PATH, 'utf8');
-    const rows = csvData.trim().split('\n');
-
-    if (rows.length <= 1) {
-      return [];
-    }
-
-    const headers = rows[0].split(',');
-    const sessions = [];
-
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      const values = [];
-      let inQuotes = false;
-      let currentValue = '';
-
-      for (let j = 0; j < row.length; j++) {
-        const char = row[j];
-
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          values.push(currentValue);
-          currentValue = '';
-        } else {
-          currentValue += char;
-        }
-      }
-      values.push(currentValue);
-
-      const session = {};
-      headers.forEach((header, index) => {
-        if (index < values.length) {
-          let value = values[index];
-          if (value.startsWith('"') && value.endsWith('"')) {
-            value = value.substring(1, value.length - 1);
-          }
-          session[header] = value;
-        }
-      });
-
-      // Add row index as id for reference
-      session.id = i - 1;
-      
-      // Convert duration_minutes to number for calculations
-      if (session.duration_minutes) {
-        session.duration_minutes = parseInt(session.duration_minutes);
-      }
-
-      sessions.push(session);
-    }
-    return sessions;
-  } catch (error) {
-    console.error('Error loading sessions:', error);
-    throw new Error('Failed to load sessions data');
-  }
-}
-
-// Load sessions call
-ipcMain.handle('load-sessions', async () => {
-  return await loadSessionsFromCSV();
-});
-
-// Update session in CSV
-ipcMain.handle('update-session', async (event, id, field, value) => {
-  const CSV_PATH = dataFilePath;
-  try {
-    // Convert id to number to ensure proper comparison
-    id = parseInt(id, 10);
-    console.log(`Updating session ${id}, field: ${field}, value: ${value}`);
-    
-    // Load all sessions
-    const sessions = await loadSessionsFromCSV();
-    console.log('Loaded sessions count:', sessions.length);
-    
-    // Find session by id
-    const sessionIndex = sessions.findIndex(s => s.id === id);
-    
-    if (sessionIndex === -1) {
-      console.error('Session not found with ID:', id);
-      return false;
-    }
-    
-    // Update the field in the session object
-    sessions[sessionIndex][field] = value;
-    console.log('Updated session object:', sessions[sessionIndex]);
-    
-    // Create CSV content
-    const headers = Object.keys(sessions[0]).filter(key => key !== 'id'); // Exclude the id field we added
-    const csvContent = [
-      headers.join(','),
-      ...sessions.map(session => {
-        return headers.map(header => {
-          const value = session[header] || '';
-          // Properly quote values with commas
-          return value.toString().includes(',') ? `"${value}"` : value;
-        }).join(',');
-      })
-    ].join('\n');
-
-    // Write to file with promise to ensure completion
-    console.log('Writing to file:', CSV_PATH);
-    await fsPromises.writeFile(CSV_PATH, csvContent, 'utf8');
-    
-    console.log(`Successfully updated session ${id}, field: ${field}`);
-    return true;
-  } catch (error) {
-    console.error('Error updating session:', error.message, error.stack);
-    throw new Error('Failed to update session: ' + error.message);
-  }
-});
-
-// Create dashboard window function
-function createDashboard() {
-  if (dashboardWindow) {
-    dashboardWindow.focus();
-    return;
-  }
-  
   dashboardWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
-    }
+      nodeIntegration: false,
+    },
   });
-  
+
   dashboardWindow.loadFile('dashboard.html');
-  
+
   dashboardWindow.on('closed', () => {
     dashboardWindow = null;
   });
+
+  return dashboardWindow;
 }
+
+function createProjectManagerWindow() {
+  if (projectManagerWindow) {
+    projectManagerWindow.focus();
+    return;
+  }
+
+  projectManagerWindow = new BrowserWindow({
+    width: 500,
+    height: 600,
+    title: 'Manage Projects',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  projectManagerWindow.loadFile('projects-manager.html');
+  // Optional: Open DevTools automatically for this window during development
+  // projectManagerWindow.webContents.openDevTools();
+
+  projectManagerWindow.on('closed', () => {
+    projectManagerWindow = null;
+    // If/when you implement updateTrayMenu, call it here
+    // updateTrayMenu();
+  });
+}
+
+// --- CSV Handling ---
+
+/**
+ * Reads and parses the data.csv file.
+ * @returns {Promise<Array<Object>>} A promise resolving to an array of session objects.
+ */
+async function loadSessionsFromCSV() {
+  console.log(`[CSV] Loading sessions from: ${DATA_FILE_PATH}`);
+  try {
+      const csvData = await fsPromises.readFile(DATA_FILE_PATH, 'utf8');
+      // Use Papaparse to parse the CSV data
+      const parseResult = Papa.parse(csvData, {
+          header: true,        // First row contains headers
+          skipEmptyLines: true, // Ignore empty lines
+          dynamicTyping: false, // Keep original types as strings for consistency initially
+          transformHeader: header => header.trim(), // Trim whitespace from headers
+      });
+
+      if (parseResult.errors.length > 0) {
+          console.error('[CSV] Errors encountered during CSV parsing:', parseResult.errors);
+          // You might want to handle specific errors differently
+      }
+
+      // Add our internal numeric ID based on row index (0-based for data rows)
+      const sessions = parseResult.data.map((session, index) => ({
+          ...session, // Spread the parsed session data
+          id: index,  // Assign index as internal ID
+          // Convert duration string to number, default to 0 if invalid/missing
+          duration_minutes: session.duration_minutes ? parseInt(session.duration_minutes, 10) || 0 : 0,
+      }));
+
+      // console.log("[CSV] Parsed sessions count:", sessions.length); // Less verbose log
+      return sessions;
+
+  } catch (error) {
+      if (error.code === 'ENOENT') {
+          console.warn('[CSV] data.csv not found during load. Returning empty array.');
+          return []; // If the file doesn't exist, return empty data
+      }
+      // Log other file reading errors
+      console.error('[CSV] Error reading sessions file:', error);
+      // Rethrow the error to be caught by the IPC handler
+      throw new Error(`Failed to load sessions data: ${error.message}`);
+  }
+}
+
+/**
+* Updates a session and overwrites data.csv using papaparse.
+* @param {string|number} id - The internal ID (row index) of the session to update.
+* @param {string} field - The header/key of the field to update.
+* @param {string} value - The new value for the field.
+* @returns {Promise<boolean>} True on success, throws error on failure.
+*/
+async function updateSessionInCSV(id, field, value) {
+  const targetId = parseInt(id, 10);
+  if (isNaN(targetId)) {
+      throw new Error(`[CSV Update] Invalid session ID provided: ${id}`);
+  }
+
+  console.log(`[CSV Update] Updating session ID ${targetId}, Field: ${field}, New Value: ${value}`);
+
+  // Load the current sessions using our Papaparse loader
+  let sessions = await loadSessionsFromCSV();
+
+  // Find the index of the session to update
+  const sessionIndex = sessions.findIndex(s => s.id === targetId);
+
+  if (sessionIndex === -1) {
+      console.error(`[CSV Update] Session with internal ID ${targetId} not found.`);
+      throw new Error(`Session with ID ${targetId} not found`);
+  }
+
+  // Update the field in the target session object in the array
+  sessions[sessionIndex][field] = value;
+
+   // Prepare data for writing: Remove our internal 'id' field
+   const dataToWrite = sessions.map(({ id, ...rest }) => rest);
+
+   // Determine headers dynamically from the first object (if any) to maintain order
+   // Or define a fixed header order if preferred
+   const headers = dataToWrite.length > 0 ? Object.keys(dataToWrite[0]) : ['date', 'start_time', 'end_time', 'duration_minutes', 'project', 'notes']; // Default headers if empty
+
+   // Convert array of objects back to CSV string using Papaparse
+   const csvString = Papa.unparse(dataToWrite, {
+       columns: headers, // Ensure consistent header order
+       header: true,     // Include header row in output
+       quotes: true,     // Add quotes where necessary (e.g., if data contains commas)
+       newline: "\n",    // Use LF line endings (generally better for Mac/Linux)
+   });
+
+   console.log('[CSV Update] Writing updated data back to file...');
+   // Overwrite the file with the new CSV string
+   await fsPromises.writeFile(DATA_FILE_PATH, csvString, 'utf8');
+   console.log('[CSV Update] File successfully updated.');
+   return true; // Indicate success
+}
+
+
+// --- Project JSON Handling ---
+
+/**
+ * Reads, optionally migrates, and returns projects from projects.json.
+ * Ensures all projects have an 'id'.
+ * @returns {Promise<Array<Object>>} Array of project objects.
+ */
+async function loadAndMigrateProjects() {
+  let needsRewrite = false;
+  try {
+    let fileContent;
+    try {
+      fileContent = await fsPromises.readFile(PROJECTS_FILE_PATH, 'utf8');
+    } catch (readError) {
+      if (readError.code === 'ENOENT') {
+        // File doesn't exist, handled by ensureDataFilesExist, but double-check
+        console.log('[loadProjects] projects.json confirmed not found, returning empty array.');
+        return [];
+      }
+      throw readError; // Re-throw other read errors
+    }
+
+    let projects = JSON.parse(fileContent);
+    if (!Array.isArray(projects)) {
+        console.error('[loadProjects] projects.json does not contain a valid JSON array. Resetting.');
+        projects = []; // Reset if content is not an array
+        needsRewrite = true;
+    }
+
+    // --- Migration Logic ---
+    projects = projects.map(project => {
+      if (typeof project === 'object' && project !== null && (!project.hasOwnProperty('id') || project.id == null)) {
+        console.log(`[loadProjects] Found project missing ID: ${project.name || 'Unnamed Project'}. Adding ID.`);
+        needsRewrite = true;
+        return {
+          ...project,
+          id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+        };
+      }
+      // Add check for non-object entries if needed, though current JSON has objects
+      if (typeof project !== 'object' || project === null) {
+          console.warn('[loadProjects] Found non-object entry in projects.json, removing:', project);
+          needsRewrite = true;
+          return null; // Mark for removal
+      }
+      return project;
+    }).filter(project => project !== null); // Remove null entries marked for removal
+    // --- End Migration Logic ---
+
+    if (needsRewrite) {
+      console.log('[loadProjects] Rewriting projects.json due to migration or cleanup...');
+      await fsPromises.writeFile(PROJECTS_FILE_PATH, JSON.stringify(projects, null, 2), 'utf8');
+      console.log('[loadProjects] projects.json rewrite complete.');
+    }
+
+    // console.log('[loadProjects] Returning projects:', projects); // Verbose log
+    return projects;
+
+  } catch (error) {
+    console.error('[loadProjects] Error loading, parsing, or migrating projects:', error);
+    // Attempt to return empty array on failure, maybe notify user?
+    return [];
+  }
+}
+
+/**
+ * Adds a new project to projects.json.
+ * @returns {Promise<Object>} Object indicating success and the new project, or throws error.
+ */
+async function addProject(name) {
+  // Log when this specific function starts
+  console.log(`[Main Func - addProject] --- Starting execution for name: "${name}"`); // Log 10
+
+  // Validate the name
+  if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    console.error('[Main Func - addProject] XXXX Validation failed: Invalid name received.'); // Log 11
+    throw new Error('Invalid project name provided.'); // Throw error on validation failure
+  }
+  const trimmedName = name.trim();
+  console.log(`[Main Func - addProject] --- Name validated: "${trimmedName}". Attempting to load projects...`); // Log 12
+
+  // Load projects (assuming loadAndMigrateProjects has its own internal logs)
+  const projects = await loadAndMigrateProjects();
+  console.log(`[Main Func - addProject] --- Projects loaded/migrated. Current count: ${projects.length}`); // Log 13
+
+  // Create the new project object
+  const newProject = {
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+      name: trimmedName
+  };
+  console.log('[Main Func - addProject] --- New project object created:', newProject); // Log 14
+
+  // Add to the array
+  projects.push(newProject);
+
+  console.log('[Main Func - addProject] --- Attempting to write updated projects array to file:', PROJECTS_FILE_PATH); // Log 15
+
+  // Write the updated array back to the file
+  try {
+    await fsPromises.writeFile(PROJECTS_FILE_PATH, JSON.stringify(projects, null, 2), 'utf8');
+    // Log success AFTER the file write completes
+    console.log(`[Main Func - addProject] --- File written successfully. Project "${trimmedName}" (ID: ${newProject.id}) added.`); // Log 16
+    // updateTrayMenu(); // This should be called here if/when implemented
+
+    // Return success object
+    return { success: true, project: newProject };
+  } catch (writeError) {
+      // Log specifically if the file write fails
+      console.error('[Main Func - addProject] XXXX Error writing projects file:', writeError.message, writeError.stack ? writeError.stack : ''); // Log 17
+      throw writeError; // Re-throw the file writing error
+  }
+}
+
+/**
+ * Deletes a project from projects.json by its ID.
+ * @returns {Promise<Object>} Object indicating success and the deleted ID, or throws error.
+ */
+async function deleteProject(id) {
+    if (!id) {
+        throw new Error('No project ID provided for deletion.');
+    }
+    let projects = await loadAndMigrateProjects(); // Load current
+    const initialLength = projects.length;
+    projects = projects.filter(p => p.id !== id);
+
+    if (projects.length === initialLength) {
+        console.warn(`[deleteProject] Project with ID ${id} not found for deletion.`);
+        // Decide: throw error or return specific status? Throwing is clearer for invoke.
+        throw new Error(`Project with ID ${id} not found`);
+    }
+
+    await fsPromises.writeFile(PROJECTS_FILE_PATH, JSON.stringify(projects, null, 2), 'utf8');
+    console.log(`[deleteProject] Deleted project with ID: ${id}`);
+    // updateTrayMenu(); // Call when implemented
+    return { success: true, id: id };
+}
+
+
+// --- IPC Handlers ---
+
+ipcMain.handle('load-sessions', async () => {
+  try {
+      return await loadSessionsFromCSV();
+  } catch (error) {
+      console.error("Error in 'load-sessions' handler:", error);
+      // Return empty or signal error to renderer?
+      // Rethrowing allows renderer's try/catch to handle it
+      throw error;
+  }
+});
+
+ipcMain.handle('update-session', async (event, id, field, value) => {
+  try {
+    return await updateSessionInCSV(id, field, value);
+  } catch (error) {
+    console.error(`Error in 'update-session' handler for ID ${id}:`, error);
+    throw error; // Let renderer handle the error
+  }
+});
+
+ipcMain.handle('load-projects', async () => {
+  try {
+    return await loadAndMigrateProjects();
+  } catch (error) {
+      console.error("Error in 'load-projects' handler:", error);
+      throw error; // Allow renderer to catch
+  }
+});
+
+ipcMain.handle('add-project', async (event, name) => {
+  // Log when the IPC handler is invoked
+  console.log(`[Main IPC] ===> Received 'add-project' request for name: "${name}"`); // Log 7
+  try {
+    // Call the actual logic function
+    const result = await addProject(name);
+    // Log the successful result before returning
+    console.log(`[Main IPC] <=== Success from addProject function. Returning:`, result); // Log 8
+    return result;
+  } catch (error) {
+    // Log if any error occurs within the addProject function or here
+    console.error(`[Main IPC] XXXX Error in 'add-project' handler for name "${name}":`, error.message, error.stack ? error.stack : ''); // Log 9
+    // Re-throw the error so the renderer's catch block is triggered
+    throw error;
+  }
+});
+
+// Note: No 'update-project' handler as requested to be removed
+
+ipcMain.handle('delete-project', async (event, id) => {
+  try {
+    return await deleteProject(id);
+  } catch (error) {
+    console.error(`Error in 'delete-project' handler for ID ${id}:`, error);
+    throw error; // Let renderer handle the error
+  }
+});
+
+
+// --- Application Lifecycle ---
+
+app.whenReady().then(async () => {
+  // Step 1: Ensure data files exist (already in your cleaned code)
+  await ensureDataFilesExist();
+  console.log('Data file path:', DATA_FILE_PATH);
+  console.log('Projects file path:', PROJECTS_FILE_PATH);
+
+  // Step 2: Define the API object that tray.js will use
+  const mainApiForTray = {
+    loadProjects: loadAndMigrateProjects, // Pass the existing function directly
+    saveSession: async (sessionData) => {
+      // Function to save session data to CSV
+      console.log("[Main] Received session to save:", sessionData);
+      // Format data for CSV line
+      // Ensure project name and notes are properly quoted/escaped for CSV
+      const projectNameFormatted = `"${sessionData.projectName.replace(/"/g, '""')}"`;
+      const notesFormatted = `"${sessionData.notes.replace(/"/g, '""')}"`;
+      const date = sessionData.startTime.split('T')[0];
+      const startTimeStr = new Date(sessionData.startTime).toTimeString().split(' ')[0];
+      const endTimeStr = new Date(sessionData.endTime).toTimeString().split(' ')[0];
+
+      const csvLine = `${date},${startTimeStr},${endTimeStr},${sessionData.durationMinutes},${projectNameFormatted},${notesFormatted}\n`;
+
+      try {
+        await fsPromises.appendFile(DATA_FILE_PATH, csvLine, 'utf8');
+        console.log("[Main] Session successfully appended to CSV.");
+      } catch (error) {
+        console.error("[Main] Error appending session to CSV:", error);
+        // Optional: Implement more robust error handling (e.g., retry, log to a file)
+      }
+    },
+    showNotesDialog: async (dialogData) => {
+      // Function to handle showing the notes dialog
+      // For now, this is a placeholder. Replace with real dialog logic later.
+      console.log("[Main] Request to show notes dialog received:", dialogData);
+      // --- Placeholder Logic ---
+      // Immediately resolve the promise with empty notes.
+      // This allows testing the rest of the endSession flow in tray.js.
+      console.warn("[Main] Notes dialog not implemented, returning empty notes.");
+      return Promise.resolve(""); // Simulate getting empty notes instantly
+
+      // --- Sketch for Actual Implementation (replace placeholder above) ---
+      /*
+      return new Promise((resolve) => {
+         // 1. Create a new small BrowserWindow (modal is tricky in Electron main process)
+         const notesWin = new BrowserWindow({ width: 400, height: 300, ... other options ... , webPreferences: { preload: 'path/to/notes_preload.js', ... } });
+         // 2. Load an HTML file for the notes UI (notes.html)
+         notesWin.loadFile('notes.html');
+         // Optional: Pass dialogData to the window via query params or IPC after loaded
+         // notesWin.webContents.on('did-finish-load', () => {
+         //    notesWin.webContents.send('set-dialog-data', dialogData);
+         // });
+
+         // 3. Listen for IPC message from notes window's preload script
+         ipcMain.once(`notes-response-${notesWin.webContents.id}`, (event, notes) => {
+           if (!notesWin.isDestroyed()) notesWin.close();
+           resolve(notes); // Resolve with notes (string) or null if cancelled
+         });
+
+         // 4. Handle window closing manually (e.g., clicking 'X')
+         notesWin.once('closed', () => {
+            ipcMain.removeAllListeners(`notes-response-${notesWin.webContents.id}`); // Clean up listener
+            resolve(null); // Assume closed without saving means cancel
+         });
+      });
+      */
+    },
+    createDashboardWindow: createDashboardWindow, // Pass existing function
+    createProjectManagerWindow: createProjectManagerWindow // Pass existing function
+  };
+
+  // Step 3: Call createTray, passing the API object, and AWAIT the result
+  console.log("[Main] Creating tray instance...");
+  trayInstance = await createTray(mainApiForTray); // <-- Updated call
+
+  if (!trayInstance) {
+      console.error("[Main] Failed to create tray instance! Check tray.js logs. Exiting.");
+      // Handle error - maybe quit app if tray is essential
+      app.quit();
+      return; // Stop further execution in this block
+  }
+  console.log("[Main] Tray instance created.");
+
+
+  // Step 4: Register global shortcut (already in your cleaned code)
+  const ret = globalShortcut.register('Shift+Option+Command+J', () => {
+    if (trayInstance) {
+        console.log("[Main] Global shortcut triggered!");
+        trayInstance.popUpContextMenu(); // Assuming tray instance has this method
+    } else {
+        console.error("[Main] Shortcut triggered but tray instance is missing!");
+    }
+  });
+
+  if (!ret) {
+    console.log('[Main] Global shortcut registration failed. Is it already registered?');
+  } else {
+      console.log('[Main] Global shortcut registered successfully.');
+  }
+});
+
+// --- Ensure the rest of your main.js remains the same ---
+// (Imports, constants, utility functions, window creation functions,
+// CSV/Project handlers, other IPC handlers, other app lifecycle events)
+
+app.on('will-quit', () => {
+  // Unregister all shortcuts when the application is about to quit
+  globalShortcut.unregisterAll();
+  console.log('Global shortcuts unregistered.');
+});
 
 // Quit the app when all windows are closed (except on macOS)
 app.on('window-all-closed', () => {
@@ -234,9 +541,10 @@ app.on('window-all-closed', () => {
   }
 });
 
-// On macOS, create a new window when the icon is clicked and no windows are open
+// On macOS, re-create a window when the dock icon is clicked and no windows are open
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
+    // Decide which window to open on activate, dashboard seems reasonable
     createDashboardWindow();
   }
 });

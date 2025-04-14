@@ -137,12 +137,3 @@
         font-weight: 400; /* This sets the font weight to normal (less weighty) */
         padding: 8px; /* You might want to adjust the padding if the smaller font looks too cramped */
       }
-
-      textarea#notes {
-        width: 100%;         /* Makes the textarea fill the available width */
-        height: 200px;      /* Adjust this height value to suit your needs */
-        font-size: 16px;    /* Adjust font size for readability */
-        padding: 10px;      /* Add padding for some space inside the textarea */
-        resize: both;       /* Allows resizing the textarea */
-      }
-      
