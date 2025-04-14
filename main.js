@@ -434,62 +434,167 @@ app.whenReady().then(async () => {
   const mainApiForTray = {
     loadProjects: loadAndMigrateProjects, // Pass the existing function directly
     saveSession: async (sessionData) => {
-      // Function to save session data to CSV
-      console.log("[Main] Received session to save:", sessionData);
-      // Format data for CSV line
-      // Ensure project name and notes are properly quoted/escaped for CSV
-      const projectNameFormatted = `"${sessionData.projectName.replace(/"/g, '""')}"`;
-      const notesFormatted = `"${sessionData.notes.replace(/"/g, '""')}"`;
-      const date = sessionData.startTime.split('T')[0];
-      const startTimeStr = new Date(sessionData.startTime).toTimeString().split(' ')[0];
-      const endTimeStr = new Date(sessionData.endTime).toTimeString().split(' ')[0];
-
-      const csvLine = `${date},${startTimeStr},${endTimeStr},${sessionData.durationMinutes},${projectNameFormatted},${notesFormatted}\n`;
-
+      console.log("[Main Save Session] Received session to save:", sessionData);
       try {
-        await fsPromises.appendFile(DATA_FILE_PATH, csvLine, 'utf8');
-        console.log("[Main] Session successfully appended to CSV.");
+          // Define the data for the new row using expected headers
+          const dataToAppend = [{
+              date: sessionData.startTime.split('T')[0],
+              start_time: new Date(sessionData.startTime).toTimeString().split(' ')[0],
+              end_time: new Date(sessionData.endTime).toTimeString().split(' ')[0],
+              duration_minutes: sessionData.durationMinutes,
+              project: sessionData.projectName, // Let Papaparse handle quoting/escaping
+              notes: sessionData.notes       // Let Papaparse handle quoting/escaping
+          }];
+          // Define the expected header order explicitly
+          const headers = ['date', 'start_time', 'end_time', 'duration_minutes', 'project', 'notes'];
+
+          // Use Papaparse to convert *only the new row* to a CSV string fragment
+          // Important: header: false because we only want the data line(s)
+          const csvFragment = Papa.unparse(dataToAppend, {
+              columns: headers, // Ensure order matches expectations
+              header: false,
+              quotes: true,     // Ensure necessary quoting
+              newline: "\n"     // Use LF line ending
+          });
+
+          let fileNeedsHeader = false;
+          let fileNeedsNewlinePrefix = false;
+
+          // Check file status to see if we need headers or a preceding newline
+          try {
+              const fileStat = await fsPromises.stat(DATA_FILE_PATH);
+              if (fileStat.size === 0) {
+                  fileNeedsHeader = true; // File exists but is empty
+              } else {
+                  // File exists and has content, check last byte for newline
+                  const buffer = Buffer.alloc(1);
+                  const fd = await fsPromises.open(DATA_FILE_PATH, 'r');
+                  await fd.read(buffer, 0, 1, fileStat.size - 1);
+                  await fd.close();
+                  if (buffer.toString() !== '\n') {
+                      fileNeedsNewlinePrefix = true; // Add newline if missing
+                      console.log('[Main Save Session] File does not end with newline, adding one.');
+                  }
+              }
+          } catch (statError) {
+              if (statError.code === 'ENOENT') {
+                  fileNeedsHeader = true; // File doesn't exist yet
+                  console.log('[Main Save Session] File does not exist, will add header.');
+              } else {
+                  throw statError; // Re-throw other stat errors
+              }
+          }
+
+          // Construct the final string to append/write
+          let stringToWrite = "";
+          if (fileNeedsHeader) {
+              // Create header string using Papaparse
+              const headerString = Papa.unparse([{}], { columns: headers, header: true, newline: "\n" }).split('\n')[0];
+              stringToWrite = headerString + "\n" + csvFragment;
+               // Use writeFile because we're potentially creating the file or overwriting an empty one with headers
+               console.log("[Main Save Session] Writing header and first line to:", DATA_FILE_PATH);
+               await fsPromises.writeFile(DATA_FILE_PATH, stringToWrite, 'utf8');
+          } else {
+              // File exists, just append the data (with preceding newline if needed)
+              stringToWrite = (fileNeedsNewlinePrefix ? "\n" : "") + csvFragment;
+              console.log("[Main Save Session] Appending line:", stringToWrite.trim());
+              await fsPromises.appendFile(DATA_FILE_PATH, stringToWrite, 'utf8');
+          }
+
+          console.log("[Main Save Session] Session successfully saved to CSV.");
+
       } catch (error) {
-        console.error("[Main] Error appending session to CSV:", error);
-        // Optional: Implement more robust error handling (e.g., retry, log to a file)
+          console.error("[Main Save Session] Error formatting or saving session to CSV:", error);
+          // Potentially throw error back to tray? Or just log here.
       }
-    },
+  },
     showNotesDialog: async (dialogData) => {
-      // Function to handle showing the notes dialog
-      // For now, this is a placeholder. Replace with real dialog logic later.
       console.log("[Main] Request to show notes dialog received:", dialogData);
-      // --- Placeholder Logic ---
-      // Immediately resolve the promise with empty notes.
-      // This allows testing the rest of the endSession flow in tray.js.
-      console.warn("[Main] Notes dialog not implemented, returning empty notes.");
-      return Promise.resolve(""); // Simulate getting empty notes instantly
-
-      // --- Sketch for Actual Implementation (replace placeholder above) ---
-      /*
       return new Promise((resolve) => {
-         // 1. Create a new small BrowserWindow (modal is tricky in Electron main process)
-         const notesWin = new BrowserWindow({ width: 400, height: 300, ... other options ... , webPreferences: { preload: 'path/to/notes_preload.js', ... } });
-         // 2. Load an HTML file for the notes UI (notes.html)
-         notesWin.loadFile('notes.html');
-         // Optional: Pass dialogData to the window via query params or IPC after loaded
-         // notesWin.webContents.on('did-finish-load', () => {
-         //    notesWin.webContents.send('set-dialog-data', dialogData);
-         // });
+          let isResolved = false; // Prevent resolving multiple times
+          let notesWin = new BrowserWindow({ /* ... same options as before ... */
+              webPreferences: {
+                  preload: path.join(__dirname, 'notes-preload.js'), // Correct preload
+                  contextIsolation: true,
+                  nodeIntegration: false,
+                  devTools: false // Keep DevTools off
+                  // enableRemoteModule: false // Ensure remote module is OFF
+              }
+          });
+          notesWin.removeMenu();
+  
+          const htmlContent = `
+            <!DOCTYPE html><html><head><title>Session Notes</title>
+            <style>
+                body { font-family: 'Poppins', sans-serif; background-color: #1e1e1e; color: #e0e0e0; padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; margin: 0; }
+                h4 { margin: 0 0 5px 0; font-weight: 500; }
+                p { margin: 0 0 15px 0; font-size: 0.9em; color: #aaa; }
+                textarea { flex-grow: 1; background-color: #2e2e2e; color: #e0e0e0; border: 1px solid #444; border-radius: 4px; padding: 8px; margin-bottom: 15px; resize: none; font-family: inherit; font-size: 1em; }
+                textarea:focus { outline: none; border-color: #666; }
+                .buttons { display: flex; justify-content: flex-end; gap: 10px; }
+                button { padding: 8px 15px; font-size: 0.9em; border-radius: 4px; border: 1px solid #555; cursor: pointer; }
+                button.primary { background-color: #4E79A7; color: white; border-color: #4E79A7; }
+                button.secondary { background-color: #444; color: #e0e0e0; }
+            </style>
+            </head><body>
+                <h4>Session Complete</h4>
+                <p>Project: ${dialogData?.projectName || 'N/A'}<br>Duration: ${formatDuration(dialogData?.durationMs || 0)}</p>
+                <textarea id="notesInput" placeholder="What did you work on?"></textarea>
+                <div class="buttons">
+                    <button id="cancelBtn" class="secondary">Cancel</button>
+                    <button id="saveBtn" class="primary">Save</button>
+                </div>
+                <script>
+                    const notesInput = document.getElementById('notesInput');
+                    const saveBtn = document.getElementById('saveBtn');
+                    const cancelBtn = document.getElementById('cancelBtn');
+                    notesInput.focus(); // Focus textarea on load
 
-         // 3. Listen for IPC message from notes window's preload script
-         ipcMain.once(`notes-response-${notesWin.webContents.id}`, (event, notes) => {
-           if (!notesWin.isDestroyed()) notesWin.close();
-           resolve(notes); // Resolve with notes (string) or null if cancelled
-         });
-
-         // 4. Handle window closing manually (e.g., clicking 'X')
-         notesWin.once('closed', () => {
-            ipcMain.removeAllListeners(`notes-response-${notesWin.webContents.id}`); // Clean up listener
-            resolve(null); // Assume closed without saving means cancel
-         });
+                    saveBtn.addEventListener('click', () => {
+                        window.electronNotesApi.submitNotes(notesInput.value);
+                    });
+                    cancelBtn.addEventListener('click', () => {
+                        window.electronNotesApi.submitNotes(null); // Send null for cancel
+                    });
+                    notesInput.addEventListener('keydown', (e) => {
+                        // Use Ctrl+Enter or Cmd+Enter to save (allow Shift+Enter for newlines)
+                        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                            e.preventDefault();
+                            saveBtn.click();
+                        } else if (e.key === 'Escape') {
+                            cancelBtn.click();
+                        }
+                    });
+                </script>
+            </body></html>`;
+          notesWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+  
+          // Send the window its ID once the content is ready
+          notesWin.webContents.once('did-finish-load', () => {
+               notesWin.webContents.send('set-window-id', notesWin.webContents.id);
+          });
+  
+          notesWin.once('ready-to-show', () => { notesWin.show(); });
+  
+          const responseChannel = `notes-response-${notesWin.webContents.id}`;
+          ipcMain.once(responseChannel, (event, notes) => {
+              if (isResolved) return;
+              isResolved = true;
+              console.log(`[Main Notes Dialog] Received notes: ${notes === null ? 'Cancelled' : '"' + notes + '"'}`);
+              if (!notesWin.isDestroyed()) notesWin.close();
+              resolve(notes);
+          });
+  
+          notesWin.once('closed', () => {
+              if (isResolved) return;
+              isResolved = true;
+              console.log("[Main Notes Dialog] Window closed by user/system.");
+              ipcMain.removeAllListeners(responseChannel);
+              resolve(null); // Resolve with null if closed without submitting
+              notesWin = null;
+          });
       });
-      */
-    },
+  },
     createDashboardWindow: createDashboardWindow, // Pass existing function
     createProjectManagerWindow: createProjectManagerWindow // Pass existing function
   };
