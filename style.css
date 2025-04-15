@@ -16,6 +16,19 @@
         box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* Slightly stronger shadow for dark mode */
         overflow: hidden;
       }
+
+      .dashboard-header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 1rem 0;
+    }
+    
+    #juju-logo {
+        max-width: 100px;
+        height: auto;
+    }
+    
   
       h1, h2, h3 {
         font-family: 'Jost', sans-serif;
@@ -159,4 +172,5 @@
           background-color: #2a2a2a; /* Match background or choose header color */
           z-index: 1; /* Keep header above scrolling content */
       }
+    
 }
