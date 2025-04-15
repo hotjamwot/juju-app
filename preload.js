@@ -10,3 +10,36 @@ contextBridge.exposeInMainWorld('api', {
   addProject: (name) => ipcRenderer.invoke('add-project', name),
   deleteProject: (id) => ipcRenderer.invoke('delete-project', id),
 });
+
+// Window ID storage
+let myWindowId = null;
+const onReadyCallbacks = [];
+
+// Listen for the window ID to be sent from the main process
+ipcRenderer.on('set-window-id', (event, id) => {
+  myWindowId = id;
+  console.log('Preload received window ID:', id);
+  // Execute any callbacks waiting for the window ID
+  onReadyCallbacks.forEach(fn => fn());
+});
+
+// Expose the electronNotesApi to the renderer
+contextBridge.exposeInMainWorld('electronNotesApi', {
+  // Function to submit notes
+  submitNotes: (notes) => {
+    if (myWindowId) {
+      const responseChannel = `notes-response-${myWindowId}`;
+      ipcRenderer.send(responseChannel, notes);
+    } else {
+      console.error("Window ID not set in preload, cannot submit notes.");
+    }
+  },
+  // Callback for when the window ID is ready
+  onReady: (callback) => {
+    if (myWindowId) {
+      callback(); // If ready, call immediately
+    } else {
+      onReadyCallbacks.push(callback); // Otherwise, queue the callback
+    }
+  }
+});

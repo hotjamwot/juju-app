@@ -21,6 +21,15 @@ if (process.platform === 'darwin') {
 
 // --- Utility Functions ---
 
+// Time duration setter
+function formatDuration(ms) {
+  if (ms < 0) ms = 0;
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return `${hours}h ${minutes}m`;
+}
+
 /**
  * Ensures the user data directory and necessary files (data.csv, projects.json) exist.
  * Creates them with defaults if they don't.
@@ -91,6 +100,11 @@ function createDashboardWindow() {
 
   dashboardWindow.loadFile('dashboard.html');
 
+    // Send the window ID to the renderer after it has finished loading
+    dashboardWindow.webContents.on('did-finish-load', () => {
+      dashboardWindow.webContents.send('set-window-id', dashboardWindow.id);
+    });
+
   dashboardWindow.on('closed', () => {
     dashboardWindow = null;
   });
@@ -116,13 +130,14 @@ function createProjectManagerWindow() {
   });
 
   projectManagerWindow.loadFile('projects-manager.html');
-  // Optional: Open DevTools automatically for this window during development
-  // projectManagerWindow.webContents.openDevTools();
+
+    // Send the window ID to the renderer after it has finished loading
+    projectManagerWindow.webContents.on('did-finish-load', () => {
+      projectManagerWindow.webContents.send('set-window-id', projectManagerWindow.id);
+    });
 
   projectManagerWindow.on('closed', () => {
     projectManagerWindow = null;
-    // If/when you implement updateTrayMenu, call it here
-    // updateTrayMenu();
   });
 }
 
@@ -425,7 +440,7 @@ ipcMain.handle('delete-project', async (event, id) => {
 // --- Application Lifecycle ---
 
 app.whenReady().then(async () => {
-  // Step 1: Ensure data files exist (already in your cleaned code)
+  // Step 1: Ensure data files exist
   await ensureDataFilesExist();
   console.log('Data file path:', DATA_FILE_PATH);
   console.log('Projects file path:', PROJECTS_FILE_PATH);
@@ -512,12 +527,12 @@ app.whenReady().then(async () => {
       console.log("[Main] Request to show notes dialog received:", dialogData);
       return new Promise((resolve) => {
           let isResolved = false; // Prevent resolving multiple times
-          let notesWin = new BrowserWindow({ /* ... same options as before ... */
+          let notesWin = new BrowserWindow({ 
               webPreferences: {
                   preload: path.join(__dirname, 'notes-preload.js'), // Correct preload
                   contextIsolation: true,
                   nodeIntegration: false,
-                  devTools: false // Keep DevTools off
+                  devTools: true
                   // enableRemoteModule: false // Ensure remote module is OFF
               }
           });
@@ -545,27 +560,35 @@ app.whenReady().then(async () => {
                     <button id="saveBtn" class="primary">Save</button>
                 </div>
                 <script>
-                    const notesInput = document.getElementById('notesInput');
-                    const saveBtn = document.getElementById('saveBtn');
-                    const cancelBtn = document.getElementById('cancelBtn');
-                    notesInput.focus(); // Focus textarea on load
+                  const notesInput = document.getElementById('notesInput');
+                  const saveBtn = document.getElementById('saveBtn');
+                   const cancelBtn = document.getElementById('cancelBtn');
+                  notesInput.focus();
 
-                    saveBtn.addEventListener('click', () => {
-                        window.electronNotesApi.submitNotes(notesInput.value);
-                    });
-                    cancelBtn.addEventListener('click', () => {
-                        window.electronNotesApi.submitNotes(null); // Send null for cancel
-                    });
+                  let isReady = false;
+
+                // Only bind handlers once ID is set
+                  window.electronNotesApi.onReady(() => {
+                      isReady = true;
+
+                      saveBtn.addEventListener('click', () => {
+                      console.log('Save button clicked');
+                      window.electronNotesApi.submitNotes(notesInput.value);
+                      });
+                     cancelBtn.addEventListener('click', () => {
+                     window.electronNotesApi.submitNotes(null);
+                     });
                     notesInput.addEventListener('keydown', (e) => {
-                        // Use Ctrl+Enter or Cmd+Enter to save (allow Shift+Enter for newlines)
-                        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                            e.preventDefault();
-                            saveBtn.click();
-                        } else if (e.key === 'Escape') {
-                            cancelBtn.click();
-                        }
-                    });
-                </script>
+                   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    saveBtn.click();
+                    } else if (e.key === 'Escape') {
+                      cancelBtn.click();
+                  }
+                });
+               });
+              </script>
+
             </body></html>`;
           notesWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
   
@@ -578,6 +601,7 @@ app.whenReady().then(async () => {
   
           const responseChannel = `notes-response-${notesWin.webContents.id}`;
           ipcMain.once(responseChannel, (event, notes) => {
+            console.log('Received notes:', notes);
               if (isResolved) return;
               isResolved = true;
               console.log(`[Main Notes Dialog] Received notes: ${notes === null ? 'Cancelled' : '"' + notes + '"'}`);
@@ -612,7 +636,7 @@ app.whenReady().then(async () => {
   console.log("[Main] Tray instance created.");
 
 
-  // Step 4: Register global shortcut (already in your cleaned code)
+  // Step 4: Register global shortcut
   const ret = globalShortcut.register('Shift+Option+Command+J', () => {
     if (trayInstance) {
         console.log("[Main] Global shortcut triggered!");
@@ -628,10 +652,6 @@ app.whenReady().then(async () => {
       console.log('[Main] Global shortcut registered successfully.');
   }
 });
-
-// --- Ensure the rest of your main.js remains the same ---
-// (Imports, constants, utility functions, window creation functions,
-// CSV/Project handlers, other IPC handlers, other app lifecycle events)
 
 app.on('will-quit', () => {
   // Unregister all shortcuts when the application is about to quit

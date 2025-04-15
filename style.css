@@ -143,4 +143,20 @@
         width: 95%; /* Adjust percentage as needed */
         box-sizing: border-box; /* Include padding/border in width */
         height: 4em; /* Make it a bit taller too */
+
+        #recent-sessions-table-container {
+          max-height: 400px; /* Or desired height */
+          overflow-y: auto; /* Add vertical scrollbar when needed */
+          display: block; /* Needed for max-height/overflow on table containers */
+          border: 1px solid #333; /* Optional: subtle border */
+          border-radius: 4px;
+      }
+      
+      /* Optional: Make header sticky */
+      #recent-sessions-table thead th {
+          position: sticky;
+          top: 0;
+          background-color: #2a2a2a; /* Match background or choose header color */
+          z-index: 1; /* Keep header above scrolling content */
+      }
 }

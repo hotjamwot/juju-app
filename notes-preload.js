@@ -1,40 +1,51 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('electronNotesApi', {
-    // Function called by the notes dialog renderer to send notes back to main
-    submitNotes: (notes) => {
-        // Send notes back on a channel unique to this window
-        const responseChannel = `notes-response-${ipcRenderer.sendSync('get-webcontents-id')}`; // Hacky way to get ID sync
-        ipcRenderer.send(responseChannel, notes);
-    }
-});
-
-// Need to get the webContents ID to construct the channel.
-// A slightly hacky synchronous way:
-ipcRenderer.sendSync = (channel) => {
-    if (channel === 'get-webcontents-id') {
-        return require('electron').remote.getCurrentWebContents().id; // Requires enableRemoteModule - less ideal
-        // Alternative: Pass ID via query param in loadURL or initial IPC message
-    }
-};
-// IMPORTANT: Using require('electron').remote requires enableRemoteModule: true in the BrowserWindow webPreferences.
-// This is generally discouraged. A better way is to have main process TELL the window its ID
-// via webContents.send after creation, or pass it as a query parameter in the data URL.
-
-// Let's try passing via an initial IPC message ( cleaner approach ):
-// Modify the 'submitNotes' function and remove the sync hack.
 let myWindowId = null;
+const onReadyCallbacks = [];
+let isReady = false;
+
+// Listen for the main process to send this window's ID
 ipcRenderer.on('set-window-id', (event, id) => {
+    console.log('[Preload] Received window ID:', id);
     myWindowId = id;
-    console.log('Preload received window ID:', id);
+    isReady = true;
+    // Execute any callbacks that were registered before the ID arrived
+    onReadyCallbacks.forEach(fn => fn());
+    onReadyCallbacks.length = 0; // Clear the array
 });
+
+// Expose the API to the renderer process
 contextBridge.exposeInMainWorld('electronNotesApi', {
+    /**
+     * Sends the notes (or null for cancel) back to the main process.
+     * @param {string | null} notes - The notes text or null if cancelled.
+     */
     submitNotes: (notes) => {
         if (myWindowId) {
-             const responseChannel = `notes-response-${myWindowId}`;
-             ipcRenderer.send(responseChannel, notes);
+            const responseChannel = `notes-response-${myWindowId}`;
+            console.log(`[Preload] Sending notes on channel: ${responseChannel}`);
+            ipcRenderer.send(responseChannel, notes);
         } else {
-             console.error("Window ID not set in preload, cannot submit notes.");
+            // This should ideally not happen if onReady is used correctly
+            console.error("[Preload] Window ID not set! Cannot submit notes.");
+        }
+    },
+    /**
+     * Registers a callback function to run once the preload script is ready
+     * (i.e., has received its window ID from the main process).
+     * @param {Function} callback - The function to execute when ready.
+     */
+    onReady: (callback) => {
+        if (typeof callback !== 'function') return;
+
+        if (isReady) {
+            console.log('[Preload] API is ready, executing callback immediately.');
+            callback(); // Already ready, execute immediately
+        } else {
+            console.log('[Preload] API not ready, queuing callback.');
+            onReadyCallbacks.push(callback); // Queue callback for later
         }
     }
 });
+
+console.log('[Preload] electronNotesApi exposed.');
