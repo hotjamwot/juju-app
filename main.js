@@ -197,7 +197,7 @@ async function loadSessionsFromCSV() {
 async function updateSessionInCSV(id, field, value) {
   const targetId = parseInt(id, 10);
   if (isNaN(targetId)) {
-      throw new Error(`[CSV Update] Invalid session ID provided: ${id}`);
+    throw new Error(`[CSV Update] Invalid session ID provided: ${id}`);
   }
 
   console.log(`[CSV Update] Updating session ID ${targetId}, Field: ${field}, New Value: ${value}`);
@@ -209,33 +209,66 @@ async function updateSessionInCSV(id, field, value) {
   const sessionIndex = sessions.findIndex(s => s.id === targetId);
 
   if (sessionIndex === -1) {
-      console.error(`[CSV Update] Session with internal ID ${targetId} not found.`);
-      throw new Error(`Session with ID ${targetId} not found`);
+    console.error(`[CSV Update] Session with internal ID ${targetId} not found.`);
+    throw new Error(`Session with ID ${targetId} not found`);
   }
 
   // Update the field in the target session object in the array
   sessions[sessionIndex][field] = value;
+  
+  // *** NEW CODE: Recalculate duration if time fields are updated ***
+  if (field === 'start_time' || field === 'end_time') {
+    const session = sessions[sessionIndex];
+    if (session.start_time && session.end_time) {
+      try {
+        // Parse times - assuming format HH:MM or HH:MM:SS
+        const startParts = session.start_time.split(':').map(Number);
+        const endParts = session.end_time.split(':').map(Number);
+        
+        // Create Date objects for calculation (using today's date)
+        const startDate = new Date();
+        startDate.setHours(startParts[0], startParts[1], startParts[2] || 0, 0);
+        
+        const endDate = new Date();
+        endDate.setHours(endParts[0], endParts[1], endParts[2] || 0, 0);
+        
+        // Handle overnight sessions (if end time is earlier than start time)
+        if (endDate < startDate) {
+          endDate.setDate(endDate.getDate() + 1);
+        }
+        
+        // Calculate duration in minutes
+        const durationMs = endDate - startDate;
+        const durationMinutes = Math.round(durationMs / (1000 * 60));
+        
+        // Update the duration field
+        sessions[sessionIndex].duration_minutes = durationMinutes.toString();
+        console.log(`[CSV Update] Recalculated duration: ${durationMinutes} minutes`);
+      } catch (e) {
+        console.error(`[CSV Update] Error calculating duration: ${e.message}`);
+      }
+    }
+  }
 
-   // Prepare data for writing: Remove our internal 'id' field
-   const dataToWrite = sessions.map(({ id, ...rest }) => rest);
+  // Prepare data for writing: Remove our internal 'id' field
+  const dataToWrite = sessions.map(({ id, ...rest }) => rest);
 
-   // Determine headers dynamically from the first object (if any) to maintain order
-   // Or define a fixed header order if preferred
-   const headers = dataToWrite.length > 0 ? Object.keys(dataToWrite[0]) : ['date', 'start_time', 'end_time', 'duration_minutes', 'project', 'notes']; // Default headers if empty
+  // Determine headers dynamically from the first object (if any) to maintain order
+  const headers = dataToWrite.length > 0 ? Object.keys(dataToWrite[0]) : ['date', 'start_time', 'end_time', 'duration_minutes', 'project', 'notes']; 
 
-   // Convert array of objects back to CSV string using Papaparse
-   const csvString = Papa.unparse(dataToWrite, {
-       columns: headers, // Ensure consistent header order
-       header: true,     // Include header row in output
-       quotes: true,     // Add quotes where necessary (e.g., if data contains commas)
-       newline: "\n",    // Use LF line endings (generally better for Mac/Linux)
-   });
+  // Convert array of objects back to CSV string using Papaparse
+  const csvString = Papa.unparse(dataToWrite, {
+    columns: headers,
+    header: true,
+    quotes: true,
+    newline: "\n",
+  });
 
-   console.log('[CSV Update] Writing updated data back to file...');
-   // Overwrite the file with the new CSV string
-   await fsPromises.writeFile(DATA_FILE_PATH, csvString, 'utf8');
-   console.log('[CSV Update] File successfully updated.');
-   return true; // Indicate success
+  console.log('[CSV Update] Writing updated data back to file...');
+  // Overwrite the file with the new CSV string
+  await fsPromises.writeFile(DATA_FILE_PATH, csvString, 'utf8');
+  console.log('[CSV Update] File successfully updated.');
+  return true;
 }
 
 

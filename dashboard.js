@@ -429,7 +429,7 @@ function createPieChart(canvasId, labels, data) {
                 data: filteredData, // Use filtered data
                 backgroundColor: generateColors(filteredLabels.length),
                 borderColor: '#1E1E1E', // Match background for separation
-                borderWidth: 1
+                borderWidth: 0
             }]
         },
         options: {
