@@ -10,10 +10,10 @@
   
       .container {
         max-width: 100%; 
-        margin: 20px auto;
+        /* margin: 20px auto; */
         /*background-color: #2C2C2C; */
         border-radius: 8px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        /*box-shadow: 0 4px 8px rgba(0,0,0,0.2); */
         overflow: hidden;
       }
 
@@ -21,25 +21,25 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 1rem 0;
+        padding: 0.5rem 0;
     }
     
     #juju-logo {
-        max-width: 80px;
+        max-width: 60px;
         height: auto;
     }
     
   
       h1, h2, h3 {
         font-family: 'Jost', sans-serif;
-        font-weight: 500;
+        font-weight: 400;
         color: #F5F5F5;
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
   
       h1 {
-        font-size: 28px;
+        font-size: 24px;
         margin: 0;
         padding: 20px;
         background-color: #333333; 
@@ -48,7 +48,7 @@
   
       .tabs {
       display: flex;
-     border-bottom: 1px solid #444;
+      /* border-bottom: 1px solid #444; */
       /* background-color: #333333; Keep this for the tab bar background */
     }
 
@@ -57,14 +57,13 @@
       cursor: pointer;
       border-bottom: 2px solid transparent;
       color: #888; /* Slightly greyer for inactive tab */
-      font-weight: 500;
+      font-weight: 200;
     }
 
       .tab.active {
       border-bottom-color: #F5F5F5; /* White underline */
       color: #F5F5F5; /* Near-white for active tab */
     }
-
   
       .tab-content {
         width: 100%;
@@ -74,7 +73,7 @@
       }
   
       .tab-content.active {
-        display: block;
+        display: inline;
       }
   
       /* Basic table styles for dark mode - we'll refine this later */
@@ -124,6 +123,7 @@
         width: 100%;
         min-width: 300px;
         max-width: none;
+        box-sizing: border-box;
       }
   
       .no-data {
@@ -178,12 +178,12 @@
 
 /* Styling for the scrollable table container */
 #recent-sessions-table-container {
-  max-height: 450px; /* Adjust max height */
+ /* max-height: 450px;*/
   overflow-y: auto;
   display: block;
   border: 1px solid #333;
   border-radius: 4px;
-  margin-top: 1em; /* Space above table */
+  /* margin-top: 1em; */
 }
 
 /* Optional: Make table header sticky when scrolling */
