@@ -18,6 +18,8 @@ function createDashboardWindow() {
       preload: path.join(app.getAppPath(), 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
+      webSecurity: true
     },
   });
 
@@ -67,16 +69,98 @@ async function showNotesDialog(dialogData) {
       const htmlContent = `
         <!DOCTYPE html><html><head><title>Session Notes</title>
         <style>
-            /* Basic styles - consider moving to a separate CSS file if complex */
-            body { font-family: system-ui, sans-serif; background-color: #282c34; color: #abb2bf; padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; margin: 0; overflow: hidden; }
-            h4 { margin: 0 0 5px 0; font-weight: 600; color: #61afef; }
-            p { margin: 0 0 15px 0; font-size: 0.9em; color: #98c379; }
-            textarea { flex-grow: 1; background-color: #21252b; color: #abb2bf; border: 1px solid #3b4048; border-radius: 4px; padding: 8px; margin-bottom: 15px; resize: none; font-family: inherit; font-size: 1em; }
-            textarea:focus { outline: none; border-color: #61afef; }
-            .buttons { display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
-            button { padding: 8px 15px; font-size: 0.9em; border-radius: 4px; border: none; cursor: pointer; font-weight: 500; }
-            button.primary { background-color: #61afef; color: #282c34; }
-            button.secondary { background-color: #4b5263; color: #abb2bf; }
+            :root {
+                --background-dark: #1E1E1E;
+                --background-light: rgba(255, 255, 255, 0.03);
+                --border-color: #444;
+                --text-light: #E0E0E0;
+                --text-muted: #888;
+                --primary-blue: #4E79A7;
+                --border-radius: 8px;
+            }
+            
+            body { 
+                font-family: 'Poppins', sans-serif;
+                background-color: var(--background-dark);
+                color: var(--text-light);
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                height: 100vh;
+                box-sizing: border-box;
+                margin: 0;
+                overflow: hidden;
+            }
+            
+            h4 { 
+                font-family: 'Jost', sans-serif;
+                margin: 0 0 5px 0;
+                font-weight: 400;
+                color: var(--text-light);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            
+            p { 
+                margin: 0 0 15px 0;
+                font-size: 0.9em;
+                color: var(--text-muted);
+            }
+            
+            textarea { 
+                flex-grow: 1;
+                background: var(--background-light);
+                color: var(--text-light);
+                border: 1px solid var(--border-color);
+                border-radius: var(--border-radius);
+                padding: 8px;
+                margin-bottom: 15px;
+                resize: none;
+                font-family: inherit;
+                font-size: 0.9em;
+                line-height: 1.4;
+            }
+            
+            textarea:focus { 
+                outline: none;
+                border-color: var(--primary-blue);
+            }
+            
+            .buttons { 
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                flex-shrink: 0;
+            }
+            
+            button { 
+                padding: 0.5rem 1rem;
+                font-size: 0.9em;
+                border-radius: 4px;
+                border: none;
+                cursor: pointer;
+                font-weight: 400;
+                font-family: inherit;
+            }
+            
+            button.primary { 
+                background: var(--primary-blue);
+                color: white;
+            }
+            
+            button.primary:hover {
+                background: #5989b7;
+            }
+            
+            button.secondary { 
+                background: rgba(255, 255, 255, 0.1);
+                color: var(--text-light);
+                border: 1px solid var(--border-color);
+            }
+            
+            button.secondary:hover {
+                background: rgba(255, 255, 255, 0.15);
+            }
         </style>
         </head><body>
             <h4>Session Complete</h4>

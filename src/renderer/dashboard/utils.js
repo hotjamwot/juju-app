@@ -3,7 +3,7 @@
  * @param {number | string | null | undefined} totalMinutes - Total minutes.
  * @returns {string} Formatted string or "?" if input is invalid.
  */
-export function formatMinutesToHoursMinutes(totalMinutes) {
+function formatMinutesToHoursMinutes(totalMinutes) {
   const minutesNum = parseInt(String(totalMinutes), 10);
   if (totalMinutes == null || isNaN(minutesNum) || minutesNum < 0) {
       return "?"; // Handle invalid input
@@ -18,7 +18,7 @@ export function formatMinutesToHoursMinutes(totalMinutes) {
  * @param {number} year - The full year (e.g., 2024).
  * @returns {string[]} Array of date strings.
  */
-export function getDaysInYear(year) {
+function getDaysInYear(year) {
     const days = [];
     const date = new Date(year, 0, 1); // Start at Jan 1st
     while (date.getFullYear() === year) {
@@ -33,7 +33,7 @@ export function getDaysInYear(year) {
  * @param {Date} d - The date object.
  * @returns {number} The ISO week number.
  */
-export function getWeekNumber(d) {
+function getWeekNumber(d) {
     // Copy date so don't modify original
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     // Set to nearest Thursday: current date + 4 - current day number
@@ -52,7 +52,7 @@ export function getWeekNumber(d) {
  * @param {number} year - The full year (e.g., 2024).
  * @returns {number} The number of weeks in the year.
  */
-export function getWeeksInYear(year) {
+function getWeeksInYear(year) {
     // Check week number of Dec 31st. If it's 1, it belongs to the next year,
     // so the last week number of the current year is the week number of Dec 24th.
     // Otherwise, it's the week number of Dec 31st.
@@ -64,3 +64,10 @@ export function getWeeksInYear(year) {
      }
      return week; // Otherwise, the week of Dec 31st is the last week
 }
+
+export {
+    formatMinutesToHoursMinutes,
+    getDaysInYear,
+    getWeekNumber,
+    getWeeksInYear
+};

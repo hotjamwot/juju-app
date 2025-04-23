@@ -6,34 +6,46 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
-    <script type="module" src="dashboard.js" defer></script>
 </head>
 <body>
     <div class="container">
         <div class="dashboard-header">
             <img src="assets/placeholder-logo.png" alt="Juju Logo" id="juju-logo">
         </div>
-
+        
         <div class="tabs">
-            <div class="tab active" data-tab="graphs">Juju</div>
-            <div class="tab" data-tab="sessions-projects">Sessions</div>
-            <div class="tab" data-tab="manage-projects">Manage Projects</div>
+            <div class="tab active" data-tab="charts">Juju</div>
+            <div class="tab" data-tab="sessions">Sessions</div>
+            <div class="tab" data-tab="projects">Projects</div>
         </div>
 
-        <div id="graphs" class="tab-content active">
-            <div class="chart-container">
+        <!-- Charts Tab Content -->
+        <div id="charts" class="tab-content active">
+            <!-- First row -->
+            <div class="chart-container yearly-chart">
                 <canvas id="yearly-chart"></canvas>
             </div>
-            <div class="chart-container">
-                <canvas id="weekly-chart"></canvas>
+
+            <!-- Second row (weekly chart only) -->
+            <div class="chart-row single-chart">
+                <div class="chart-container">
+                    <canvas id="weekly-chart"></canvas>
+                </div>
             </div>
-            <div class="chart-container">
-                <canvas id="pie-chart"></canvas>
+
+            <!-- Third row (day comparison and pie chart) -->
+            <div class="chart-row">
+                <div class="chart-container">
+                    <canvas id="day-comparison-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="pie-chart"></canvas>
+                </div>
             </div>
         </div>
 
-        <div id="sessions-projects" class="tab-content">
+        <!-- Sessions Tab Content -->
+        <div id="sessions" class="tab-content">
             <div id="recent-sessions-table-container">
                 <table id="recent-sessions-table">
                     <thead>
@@ -41,36 +53,34 @@
                             <th>Date</th>
                             <th>Project</th>
                             <th>Duration</th>
-                            <th>Start</th>
-                            <th>End</th>
+                            <th>Start Time</th>
+                            <th>End Time</th>
                             <th>Notes</th>
                         </tr>
                     </thead>
                     <tbody id="recent-sessions-body">
-                        <tr>
-                            <td colspan="6" class="no-data">Loading sessions...</td>
-                        </tr>
+                        <!-- Sessions will be populated by JavaScript -->
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <div id="manage-projects" class="tab-content">
+        <!-- Projects Tab Content -->
+        <div id="projects" class="tab-content">
             <div class="projects-grid">
-                <div class="existing-projects">
-                    <h3>Existing Projects</h3>
-                    <div id="projects-list"></div>
-                </div>
-                <div class="add-project">
-                    <h3>Add New Project</h3>
-                    <form id="add-project-form">
-                        <input type="text" id="new-project-name" placeholder="Project Name" required>
-                        <input type="color" id="new-project-color" value="#4E79A7">
-                        <button type="submit">Add Project</button>
-                    </form>
-                </div>
+                <div id="projects-list"></div>
+                <form id="add-project-form">
+                    <input type="text" id="new-project-name" placeholder="Project Name" required>
+                    <input type="color" id="new-project-color" value="#4E79A7">
+                    <button type="submit">Add Project</button>
+                </form>
             </div>
         </div>
     </div>
+
+    <!-- Load Chart.js first -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Load your app scripts after Chart.js -->
+    <script src="dashboard.js" type="module"></script>
 </body>
 </html>

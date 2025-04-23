@@ -4,7 +4,7 @@ import { formatMinutesToHoursMinutes } from './utils.js'; // Import necessary ut
 const recentSessionsBody = document.getElementById('recent-sessions-body');
 
 // --- Tab Functionality ---
-export function setupTabs() {
+function setupTabs() {
     document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => {
             // Deactivate all tabs and content
@@ -25,7 +25,7 @@ export function setupTabs() {
 }
 
 // --- Sessions Table ---
-export function updateSessionsTable(sessions, refreshDashboardDataCallback) {
+function updateSessionsTable(sessions, refreshDashboardDataCallback) {
     if (!recentSessionsBody) {
         console.error('[UI] Cannot update sessions table: recentSessionsBody element not found.');
         return;
@@ -214,3 +214,8 @@ async function handleCellUpdate(refreshDashboardDataCallback) { // Receive callb
          cell.removeAttribute('data-original-value');
     }
 }
+
+export {
+    setupTabs,
+    updateSessionsTable
+};
