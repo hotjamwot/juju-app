@@ -1,10 +1,9 @@
 const { BrowserWindow, ipcMain, app } = require('electron');
 const path = require('path');
-const { formatDuration } = require('./utils'); // Import from sibling utils file
+const { formatDuration } = require('./utils'); 
 
 // Keep track of windows to prevent duplicates
 let dashboardWindow = null;
-let projectManagerWindow = null;
 
 function createDashboardWindow() {
   if (dashboardWindow && !dashboardWindow.isDestroyed()) {
@@ -16,7 +15,7 @@ function createDashboardWindow() {
     width: 1400,
     height: 800,
     webPreferences: {
-      preload: path.join(app.getAppPath(), 'preload.js'), // Use app.getAppPath() for reliability
+      preload: path.join(app.getAppPath(), 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -24,7 +23,6 @@ function createDashboardWindow() {
 
   dashboardWindow.loadFile(path.join(app.getAppPath(), 'dashboard.html'));
 
-  // Send the window ID to the renderer after it has finished loading
   dashboardWindow.webContents.on('did-finish-load', () => {
     if (dashboardWindow && !dashboardWindow.isDestroyed()) {
         dashboardWindow.webContents.send('set-window-id', dashboardWindow.id);
@@ -36,39 +34,6 @@ function createDashboardWindow() {
   });
 
   return dashboardWindow;
-}
-
-function createProjectManagerWindow() {
-  if (projectManagerWindow && !projectManagerWindow.isDestroyed()) {
-    projectManagerWindow.focus();
-    return projectManagerWindow; // Return existing window
-  }
-
-  projectManagerWindow = new BrowserWindow({
-    width: 500,
-    height: 600,
-    title: 'Manage Projects',
-    webPreferences: {
-      preload: path.join(app.getAppPath(), 'preload.js'), // Use app.getAppPath()
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-
-  projectManagerWindow.loadFile(path.join(app.getAppPath(), 'projects-manager.html'));
-
-  // Send the window ID to the renderer after it has finished loading
-  projectManagerWindow.webContents.on('did-finish-load', () => {
-     if (projectManagerWindow && !projectManagerWindow.isDestroyed()) {
-        projectManagerWindow.webContents.send('set-window-id', projectManagerWindow.id);
-     }
-  });
-
-  projectManagerWindow.on('closed', () => {
-    projectManagerWindow = null;
-  });
-
-  return projectManagerWindow; // Return the created window
 }
 
 /**
@@ -191,12 +156,7 @@ async function showNotesDialog(dialogData) {
   });
 }
 
-
 module.exports = {
   createDashboardWindow,
-  createProjectManagerWindow,
   showNotesDialog,
-  // Expose window variables if needed externally (less common)
-  // getDashboardWindow: () => dashboardWindow,
-  // getProjectManagerWindow: () => projectManagerWindow,
 };

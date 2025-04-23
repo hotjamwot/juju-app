@@ -7,21 +7,32 @@ let pieChartInstance = null;
 
 // --- Chart Utility Functions ---
 
-// Get a consistent color based on index
-function getColor(index) {
-    const colors = [
+// Get color for a project, falling back to a default color scheme if no custom color is set
+async function getProjectColor(projectName, index) {
+    try {
+        const projects = await window.api.loadProjects();
+        const project = projects.find(p => p.name === projectName);
+        if (project && project.color) {
+            return project.color;
+        }
+    } catch (error) {
+        console.warn('Error loading project colors:', error);
+    }
+    
+    // Fallback colors if no custom color is found
+    const defaultColors = [
         '#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
         '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC',
-        '#E494A6', '#F1A861', '#86BCB6', '#A8A07D', '#B881A3' // Added more colors
+        '#E494A6', '#F1A861', '#86BCB6', '#A8A07D', '#B881A3'
     ];
-    return colors[index % colors.length];
+    return defaultColors[index % defaultColors.length];
 }
 
-// Generate an array of colors for charts like Pie
-function generateColors(count) {
+// Generate colors for multiple projects
+async function generateColors(projectNames) {
     const colors = [];
-    for (let i = 0; i < count; i++) {
-        colors.push(getColor(i));
+    for (let i = 0; i < projectNames.length; i++) {
+        colors.push(await getProjectColor(projectNames[i], i));
     }
     return colors;
 }
@@ -65,7 +76,7 @@ function prepareYearlyDailyProjectData(sessions) {
     const datasets = projectList.map((project, index) => ({
         label: project,
         data: daysInYear.map(day => projectDataByDay[day]?.[project] || 0), // Get hours for this project on this day
-        backgroundColor: getColor(index),
+        backgroundColor: '#000000', // Placeholder, will be updated later
     }));
 
     return { labels: daysInYear, monthLabels, datasets };
@@ -99,7 +110,7 @@ function prepareWeeklyProjectData(sessions) {
     const datasets = projectList.map((project, index) => ({
         label: project,
         data: weekLabels.map((_, weekIndex) => projectDataByWeek[weekIndex + 1]?.[project] || 0),
-        backgroundColor: getColor(index),
+        backgroundColor: '#000000', // Placeholder, will be updated later
     }));
 
     return { labels: weekLabels, datasets };
@@ -122,13 +133,12 @@ function preparePieData(sessions) {
 // --- Chart Creation Functions ---
 
 // Create a stacked bar chart instance
-function createStackedBarChart(canvasId, labels, datasets, yAxisLabel, monthLabels = null) {
+async function createStackedBarChart(canvasId, labels, datasets, yAxisLabel, monthLabels = null) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) {
         console.error(`Canvas element with ID ${canvasId} not found.`);
         return null;
     }
-    // Check if Chart is available (it should be loaded globally via dashboard.html)
     if (typeof Chart === 'undefined') {
         console.error('Chart.js is not loaded. Cannot create chart.');
         return null;
@@ -137,6 +147,15 @@ function createStackedBarChart(canvasId, labels, datasets, yAxisLabel, monthLabe
 
     // Filter out datasets with all zero values to avoid clutter
     const visibleDatasets = datasets.filter(ds => ds.data.some(val => val > 0));
+
+    // Get colors for each dataset
+    const projectNames = visibleDatasets.map(ds => ds.label);
+    const colors = await generateColors(projectNames);
+    
+    // Assign colors to datasets
+    visibleDatasets.forEach((dataset, index) => {
+        dataset.backgroundColor = colors[index];
+    });
 
     return new Chart(ctx, {
         type: 'bar',
@@ -224,13 +243,12 @@ function createStackedBarChart(canvasId, labels, datasets, yAxisLabel, monthLabe
 }
 
 // Create a pie chart instance
-function createPieChart(canvasId, labels, data) {
-     const canvas = document.getElementById(canvasId);
+async function createPieChart(canvasId, labels, data) {
+    const canvas = document.getElementById(canvasId);
     if (!canvas) {
         console.error(`Canvas element with ID ${canvasId} not found.`);
         return null;
     }
-     // Check if Chart is available
     if (typeof Chart === 'undefined') {
         console.error('Chart.js is not loaded. Cannot create chart.');
         return null;
@@ -255,13 +273,16 @@ function createPieChart(canvasId, labels, data) {
         return null;
     }
 
+    // Get colors for the filtered labels
+    const colors = await generateColors(filteredLabels);
+
     return new Chart(ctx, {
         type: 'pie',
         data: {
             labels: filteredLabels, // Use filtered labels
             datasets: [{
                 data: filteredData, // Use filtered data
-                backgroundColor: generateColors(filteredLabels.length),
+                backgroundColor: colors,
                 borderColor: '#1E1E1E', // Match background for separation
                 borderWidth: 0
             }]
@@ -303,7 +324,7 @@ export function destroyCharts() {
 }
 
 // Initialize all charts
-export function initCharts(sessions) {
+export async function initCharts(sessions) {
     if (!sessions || sessions.length === 0) {
         console.log('[Charts] No session data to initialize charts.');
         // Optional: Display messages on canvas like "No data"
@@ -331,13 +352,13 @@ export function initCharts(sessions) {
         destroyCharts();
 
         const yearlyDailyProjectData = prepareYearlyDailyProjectData(yearlySessions);
-        yearlyChartInstance = createStackedBarChart('yearly-chart', yearlyDailyProjectData.labels, yearlyDailyProjectData.datasets, 'Hours', yearlyDailyProjectData.monthLabels);
+        yearlyChartInstance = await createStackedBarChart('yearly-chart', yearlyDailyProjectData.labels, yearlyDailyProjectData.datasets, 'Hours', yearlyDailyProjectData.monthLabels);
 
         const weeklyProjectData = prepareWeeklyProjectData(yearlySessions);
-        weeklyChartInstance = createStackedBarChart('weekly-chart', weeklyProjectData.labels, weeklyProjectData.datasets, 'Hours');
+        weeklyChartInstance = await createStackedBarChart('weekly-chart', weeklyProjectData.labels, weeklyProjectData.datasets, 'Hours');
 
         const yearlyPieData = preparePieData(yearlySessions);
-        pieChartInstance = createPieChart('pie-chart', yearlyPieData.labels, yearlyPieData.data);
+        pieChartInstance = await createPieChart('pie-chart', yearlyPieData.labels, yearlyPieData.data);
 
         console.log('[Charts] Finished initializing charts.');
         // Return the created instances so dashboard.js can store them if needed

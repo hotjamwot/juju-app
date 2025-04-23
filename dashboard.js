@@ -18,7 +18,95 @@ const recentSessionsBody = document.getElementById('recent-sessions-body');
 document.addEventListener('DOMContentLoaded', () => {
     setupTabs(); // Call imported function
     refreshDashboardData(); // Initial data load
+    initProjectManagement();
 });
+
+// --- Project Management ---
+async function initProjectManagement() {
+    const projectsList = document.getElementById('projects-list');
+    const addProjectForm = document.getElementById('add-project-form');
+
+    // Load and display projects
+    await refreshProjectsList();
+
+    // Add project form handler
+    addProjectForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nameInput = document.getElementById('new-project-name');
+        const colorInput = document.getElementById('new-project-color');
+        
+        try {
+            const result = await window.api.addProject({
+                name: nameInput.value.trim(),
+                color: colorInput.value
+            });
+
+            if (result && result.success) {
+                nameInput.value = '';
+                colorInput.value = '#4E79A7';
+                await refreshProjectsList();
+                // Refresh charts to show new project color
+                refreshDashboardData();
+            }
+        } catch (error) {
+            console.error('Error adding project:', error);
+            alert('Failed to add project: ' + error.message);
+        }
+    });
+}
+
+async function refreshProjectsList() {
+    const projectsList = document.getElementById('projects-list');
+    const projects = await window.api.loadProjects();
+
+    projectsList.innerHTML = '';
+    
+    projects.forEach(project => {
+        const projectElement = document.createElement('div');
+        projectElement.className = 'project-item';
+        projectElement.innerHTML = `
+            <div class="project-info">
+                <span class="project-name">${project.name}</span>
+                <div class="project-color">
+                    <input type="color" value="${project.color || '#4E79A7'}" 
+                           data-project-id="${project.id}">
+                </div>
+            </div>
+            <div class="project-actions">
+                <button class="delete-project" data-project-id="${project.id}">Delete</button>
+            </div>
+        `;
+
+        // Add color change handler
+        const colorInput = projectElement.querySelector('input[type="color"]');
+        colorInput.addEventListener('change', async (e) => {
+            try {
+                await window.api.updateProjectColor(project.id, e.target.value);
+                refreshDashboardData();
+            } catch (error) {
+                console.error('Error updating project color:', error);
+                alert('Failed to update color: ' + error.message);
+            }
+        });
+
+        // Add delete handler
+        const deleteButton = projectElement.querySelector('.delete-project');
+        deleteButton.addEventListener('click', async () => {
+            if (confirm(`Are you sure you want to delete ${project.name}?`)) {
+                try {
+                    await window.api.deleteProject(project.id);
+                    await refreshProjectsList();
+                    refreshDashboardData();
+                } catch (error) {
+                    console.error('Error deleting project:', error);
+                    alert('Failed to delete project: ' + error.message);
+                }
+            }
+        });
+
+        projectsList.appendChild(projectElement);
+    });
+}
 
 // --- Data Refresh ---
 async function refreshDashboardData() {

@@ -31,14 +31,14 @@ function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('add-project', async (event, name) => {
-    console.log(`[IPC Handler] Received 'add-project' for name: "${name}"`);
+  ipcMain.handle('add-project', async (event, projectData) => {
+    console.log(`[IPC Handler] Received 'add-project' request:`, projectData);
     try {
-      const result = await dataManager.addProject(name);
+      const result = await dataManager.addProject(projectData);
       console.log(`[IPC Handler] Success from addProject. Returning:`, result);
       return result;
     } catch (error) {
-      console.error(`[IPC Handler] Error in 'add-project' handler for name "${name}":`, error);
+      console.error(`[IPC Handler] Error in 'add-project' handler:`, error);
       throw error;
     }
   });
@@ -48,6 +48,15 @@ function registerIpcHandlers() {
       return await dataManager.deleteProject(id);
     } catch (error) {
       console.error(`Error in 'delete-project' handler for ID ${id}:`, error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('update-project-color', async (event, id, color) => {
+    try {
+      return await dataManager.updateProjectColor(id, color);
+    } catch (error) {
+      console.error(`Error in 'update-project-color' handler for ID ${id}:`, error);
       throw error;
     }
   });

@@ -18,6 +18,7 @@
         <div class="tabs">
             <div class="tab active" data-tab="graphs">Juju</div>
             <div class="tab" data-tab="sessions-projects">Sessions</div>
+            <div class="tab" data-tab="manage-projects">Manage Projects</div>
         </div>
 
         <div id="graphs" class="tab-content active">
@@ -39,7 +40,8 @@
                         <tr>
                             <th>Date</th>
                             <th>Project</th>
-                            <th>Duration</th> <th>Start</th>
+                            <th>Duration</th>
+                            <th>Start</th>
                             <th>End</th>
                             <th>Notes</th>
                         </tr>
@@ -52,5 +54,23 @@
                 </table>
             </div>
         </div>
-    </div> </body>
+
+        <div id="manage-projects" class="tab-content">
+            <div class="projects-grid">
+                <div class="existing-projects">
+                    <h3>Existing Projects</h3>
+                    <div id="projects-list"></div>
+                </div>
+                <div class="add-project">
+                    <h3>Add New Project</h3>
+                    <form id="add-project-form">
+                        <input type="text" id="new-project-name" placeholder="Project Name" required>
+                        <input type="color" id="new-project-color" value="#4E79A7">
+                        <button type="submit">Add Project</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
 </html>

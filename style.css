@@ -1,5 +1,4 @@
-   
-    body {
+body {
         font-family: 'Poppins', sans-serif;
         margin: 0;
         padding: 18px;
@@ -193,4 +192,96 @@
   background-color: #2a2a2a; /* Header background */
   z-index: 1;
   color: #e0e0e0;
+}
+
+/* Project Management Styles */
+.projects-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    padding: 1rem;
+}
+
+#projects-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.project-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.project-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.project-color {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.project-color input[type="color"] {
+    width: 40px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+}
+
+.project-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+#add-project-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 300px;
+}
+
+#add-project-form input {
+    padding: 0.5rem;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #E0E0E0;
+}
+
+#add-project-form button {
+    padding: 0.5rem 1rem;
+    background: #4E79A7;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+}
+
+#add-project-form button:hover {
+    background: #5989b7;
+}
+
+.delete-project {
+    padding: 0.25rem 0.75rem;
+    background: #E15759;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.delete-project:hover {
+    background: #e86b6d;
 }

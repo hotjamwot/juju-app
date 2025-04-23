@@ -269,47 +269,80 @@ async function loadAndMigrateProjects() {
 }
 
 /**
- * Adds a new project to projects.json.
- * @param {string} name - The name for the new project.
- * @returns {Promise<Object>} Object indicating success and the new project, or throws error.
+ * Updates a project's color in projects.json.
+ * @param {string} id - The ID of the project to update.
+ * @param {string} color - The new color value (hex format).
+ * @returns {Promise<Object>} Object indicating success and the updated project.
  */
-async function addProject(name) {
-  console.log(`[Data Manager - addProject] Received request for name: "${name}"`);
+async function updateProjectColor(id, color) {
+    if (!id || !color) {
+        throw new Error('Project ID and color are required');
+    }
 
-  // Validate the name
-  if (!name || typeof name !== 'string' || name.trim().length === 0) {
-    console.error('[Data Manager - addProject] Validation failed: Invalid name.');
-    throw new Error('Invalid project name provided.');
-  }
-  const trimmedName = name.trim();
-  console.log(`[Data Manager - addProject] Name validated: "${trimmedName}". Loading projects...`);
+    // Validate color format (basic hex color validation)
+    if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+        throw new Error('Invalid color format. Must be a hex color (e.g., #FF0000)');
+    }
 
-  const projects = await loadAndMigrateProjects(); // Load existing projects
+    let projects = await loadAndMigrateProjects();
+    const projectIndex = projects.findIndex(p => p.id === id);
 
-  // Check for duplicate names (case-insensitive check might be good)
-  if (projects.some(p => p.name.toLowerCase() === trimmedName.toLowerCase())) {
-      console.warn(`[Data Manager - addProject] Project with name "${trimmedName}" already exists.`);
-      throw new Error(`Project named "${trimmedName}" already exists.`);
-  }
+    if (projectIndex === -1) {
+        throw new Error(`Project with ID ${id} not found`);
+    }
 
-  // Create the new project object
-  const newProject = {
-      id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
-      name: trimmedName
-  };
-  console.log('[Data Manager - addProject] New project object created:', newProject);
+    // Update the color
+    projects[projectIndex].color = color;
 
-  projects.push(newProject); // Add to the array
-
-  console.log('[Data Manager - addProject] Writing updated projects array to file:', PROJECTS_FILE_PATH);
-  try {
+    // Write back to file
     await fsPromises.writeFile(PROJECTS_FILE_PATH, JSON.stringify(projects, null, 2), 'utf8');
-    console.log(`[Data Manager - addProject] File written. Project "${trimmedName}" added.`);
-    return { success: true, project: newProject };
-  } catch (writeError) {
-      console.error('[Data Manager - addProject] Error writing projects file:', writeError);
-      throw writeError; // Re-throw
-  }
+    return { success: true, project: projects[projectIndex] };
+}
+
+/**
+ * Adds a new project to projects.json.
+ * @param {Object} projectData - The project data { name: string, color?: string }.
+ * @returns {Promise<Object>} Object indicating success and the new project.
+ */
+async function addProject(projectData) {
+    console.log(`[Data Manager - addProject] Received project data:`, projectData);
+
+    // Validate the project data
+    if (!projectData || !projectData.name || typeof projectData.name !== 'string' || projectData.name.trim().length === 0) {
+        console.error('[Data Manager - addProject] Validation failed: Invalid project data');
+        throw new Error('Invalid project data provided');
+    }
+
+    const trimmedName = projectData.name.trim();
+    console.log(`[Data Manager - addProject] Name validated: "${trimmedName}". Loading projects...`);
+
+    const projects = await loadAndMigrateProjects();
+
+    // Check for duplicate names (case-insensitive)
+    if (projects.some(p => p.name.toLowerCase() === trimmedName.toLowerCase())) {
+        console.warn(`[Data Manager - addProject] Project with name "${trimmedName}" already exists.`);
+        throw new Error(`Project named "${trimmedName}" already exists`);
+    }
+
+    // Create the new project object with optional color
+    const newProject = {
+        id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+        name: trimmedName,
+        color: projectData.color || '#4E79A7' // Use provided color or default
+    };
+    console.log('[Data Manager - addProject] New project object created:', newProject);
+
+    projects.push(newProject);
+
+    console.log('[Data Manager - addProject] Writing updated projects array to file:', PROJECTS_FILE_PATH);
+    try {
+        await fsPromises.writeFile(PROJECTS_FILE_PATH, JSON.stringify(projects, null, 2), 'utf8');
+        console.log(`[Data Manager - addProject] File written. Project "${trimmedName}" added.`);
+        return { success: true, project: newProject };
+    } catch (writeError) {
+        console.error('[Data Manager - addProject] Error writing projects file:', writeError);
+        throw writeError;
+    }
 }
 
 /**
@@ -429,6 +462,7 @@ module.exports = {
   loadSessionsFromCSV,
   updateSessionInCSV,
   loadAndMigrateProjects,
+  updateProjectColor,
   addProject,
   deleteProject,
   saveSession,

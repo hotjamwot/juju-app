@@ -117,10 +117,6 @@ async function updateTrayMenu() {
             label: 'View Dashboard',
             click: () => mainProcessApi.createDashboardWindow(), // Use stored function
         },
-        {
-            label: 'Manage Projects',
-            click: () => mainProcessApi.createProjectManagerWindow(), // Use stored function
-        },
         { type: 'separator' },
         {
             label: 'Quit Juju',

@@ -24,11 +24,11 @@ function initializeAppLifecycle() {
 
     // Step 3: Define the API object that tray.js will use
     const mainApiForTray = {
-      loadProjects: dataManager.loadAndMigrateProjects,
-      saveSession: dataManager.saveSession,
-      showNotesDialog: windowManager.showNotesDialog,
-      createDashboardWindow: windowManager.createDashboardWindow,
-      createProjectManagerWindow: windowManager.createProjectManagerWindow
+      loadProjects: () => dataManager.loadAndMigrateProjects(),
+      saveSession: (sessionData) => dataManager.saveSession(sessionData),
+      showNotesDialog: (dialogData) => windowManager.showNotesDialog(dialogData),
+      createDashboardWindow: () => windowManager.createDashboardWindow(),
+      createProjectManagerWindow: () => windowManager.createProjectManagerWindow
     };
 
     // Step 4: Call createTray, passing the API object, and AWAIT the result
