@@ -21,6 +21,7 @@
 
         <!-- Charts Tab Content -->
         <div id="charts" class="tab-content active">
+
             <!-- First row -->
             <div class="chart-container yearly-chart">
                 <canvas id="yearly-chart"></canvas>
@@ -40,6 +41,27 @@
                 </div>
                 <div class="chart-container">
                     <canvas id="pie-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Date Filter Controls -->
+            <div class="date-filter-controls">
+                <div class="date-filter-title-container">
+                    <h2 id="chart-range-title">Showing data for: This Year</h2>
+                </div>
+                <div class="date-filter-buttons">
+                    <button class="date-filter-btn" data-range="7d">Last 7 Days</button>
+                    <button class="date-filter-btn" data-range="1m">Last Month</button>
+                    <button class="date-filter-btn" data-range="3m">Last Quarter</button>
+                    <button class="date-filter-btn active" data-range="1y">This Year</button>
+                    <button class="date-filter-btn" data-range="all">All Time</button>
+                </div>
+                <div class="date-filter-custom">
+                    <label for="date-from">From:</label>
+                    <input type="date" id="date-from">
+                    <label for="date-to">To:</label>
+                    <input type="date" id="date-to">
+                    <button id="apply-custom-date">Apply</button>
                 </div>
             </div>
         </div>

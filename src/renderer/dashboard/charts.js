@@ -40,83 +40,122 @@ async function generateColors(projectNames) {
 
 // --- Data Preparation Logic ---
 
-// Prepare data for yearly chart (daily breakdown)
-function prepareYearlyDailyProjectData(sessions) {
+// Prepare data for daily breakdown chart based on filtered sessions
+function prepareYearlyDailyProjectData(filteredSessions) {
+    if (!filteredSessions || filteredSessions.length === 0) {
+        console.log('[Charts] No sessions for daily breakdown chart.');
+        return { labels: [], monthLabels: {}, datasets: [] };
+    }
+
     const projectDataByDay = {}; // Key: YYYY-MM-DD, Value: { project1: hours, project2: hours }
     const projects = new Set(); // Keep track of all unique projects
+    let minDate = null;
+    let maxDate = null;
 
-    // Aggregate hours per project per day
-    sessions.forEach(session => {
-        const date = session.date;
-        if (!date || isNaN(new Date(date + 'T00:00:00'))) return; // Skip invalid dates
+    // Aggregate hours per project per day and find date range
+    filteredSessions.forEach(session => {
+        const dateStr = session.date;
+        try {
+            const sessionDate = new Date(dateStr + 'T00:00:00');
+            if (!dateStr || isNaN(sessionDate.getTime())) return; // Skip invalid dates
 
-        const project = session.project || 'Unassigned';
-        projects.add(project);
-        const durationHours = (session.duration_minutes || 0) / 60;
+            // Update min/max dates
+            if (minDate === null || sessionDate < minDate) minDate = sessionDate;
+            if (maxDate === null || sessionDate > maxDate) maxDate = sessionDate;
 
-        if (!projectDataByDay[date]) projectDataByDay[date] = {};
-        projectDataByDay[date][project] = (projectDataByDay[date][project] || 0) + durationHours;
+            const project = session.project || 'Unassigned';
+            projects.add(project);
+            const durationHours = (session.duration_minutes || 0) / 60;
+
+            if (!projectDataByDay[dateStr]) projectDataByDay[dateStr] = {};
+            projectDataByDay[dateStr][project] = (projectDataByDay[dateStr][project] || 0) + durationHours;
+        } catch (e) { /* ignore invalid dates */ }
     });
 
-    // Create labels for all days in the current year
-    const currentYear = new Date().getFullYear();
-    const daysInYear = getDaysInYear(currentYear); // Use imported utility
+    if (minDate === null || maxDate === null) {
+        console.log('[Charts] Could not determine date range for daily breakdown.');
+        return { labels: [], monthLabels: {}, datasets: [] };
+    }
 
-    // Create month labels map for nice X-axis ticks
+    // Create labels for all days within the determined range
+    const allDaysInRange = [];
     const monthLabels = {};
-    daysInYear.forEach(dateStr => {
-        if (dateStr.endsWith('-01')) { // If it's the 1st of the month
-             try {
-                monthLabels[dateStr] = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short' });
-             } catch(e) { /* ignore invalid date */ }
+    let currentDate = new Date(minDate);
+    const today = new Date(); // To potentially limit future data if needed, though maybe not for historical views
+    today.setHours(0, 0, 0, 0); // Normalize today's date
+
+    while (currentDate <= maxDate) {
+        const dateStr = currentDate.toISOString().slice(0, 10);
+        allDaysInRange.push(dateStr);
+        // Create month labels for the 1st of each month in the range
+        if (currentDate.getDate() === 1) {
+            monthLabels[dateStr] = currentDate.toLocaleDateString('en-GB', { month: 'short' });
         }
-    });
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
 
     // Create datasets for Chart.js
     const projectList = Array.from(projects).sort(); // Sort projects alphabetically
-    const datasets = projectList.map((project, index) => ({
+    const datasets = projectList.map((project) => ({
         label: project,
-        data: daysInYear.map(day => {
-            const today = new Date().toISOString().slice(0, 10);
-            return day <= today ? (projectDataByDay[day]?.[project] || 0) : null; // Stop data after today
-        }),
+        // Map data for each day in the generated range
+        data: allDaysInRange.map(day => projectDataByDay[day]?.[project] || 0),
         backgroundColor: '#000000', // Placeholder, will be updated later
     }));
 
-    return { labels: daysInYear, monthLabels, datasets };
+    return { labels: allDaysInRange, monthLabels, datasets };
 }
 
-// Prepare data for weekly chart
-function prepareWeeklyProjectData(sessions) {
-    const projectDataByWeek = {};
+// Prepare data for weekly chart based on filtered sessions
+function prepareWeeklyProjectData(filteredSessions) {
+    if (!filteredSessions || filteredSessions.length === 0) {
+        console.log('[Charts] No sessions for weekly chart.');
+        return { labels: [], datasets: [] };
+    }
+
+    const projectDataByWeekYear = {}; // Key: YYYY-WW, Value: { project1: hours, project2: hours }
     const projects = new Set();
-    const currentYear = new Date().getFullYear();
+    const weekYearLabelsSet = new Set(); // To store unique YYYY-WW labels in order
 
-    sessions.forEach(session => {
+    // Aggregate hours per project per week/year
+    filteredSessions.forEach(session => {
         try {
-             const sessionDate = new Date(session.date + 'T00:00:00');
-             if (isNaN(sessionDate.getTime()) || sessionDate.getFullYear() !== currentYear) return;
+            const sessionDate = new Date(session.date + 'T00:00:00');
+            if (isNaN(sessionDate.getTime())) return;
 
-             const weekNumber = getWeekNumber(sessionDate);
-             const project = session.project || 'Unassigned';
-             projects.add(project);
-             const durationHours = (session.duration_minutes || 0) / 60;
+            const year = sessionDate.getFullYear();
+            const weekNumber = getWeekNumber(sessionDate); // Assumes getWeekNumber handles year boundaries correctly
+            const weekYearKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`; // e.g., 2023-W05
 
-             if (!projectDataByWeek[weekNumber]) projectDataByWeek[weekNumber] = {};
-             projectDataByWeek[weekNumber][project] = (projectDataByWeek[weekNumber][project] || 0) + durationHours;
-        } catch(e) { /* Skip if date is invalid */ }
+            weekYearLabelsSet.add(weekYearKey); // Add to ordered set
+
+            const project = session.project || 'Unassigned';
+            projects.add(project);
+            const durationHours = (session.duration_minutes || 0) / 60;
+
+            if (!projectDataByWeekYear[weekYearKey]) projectDataByWeekYear[weekYearKey] = {};
+            projectDataByWeekYear[weekYearKey][project] = (projectDataByWeekYear[weekYearKey][project] || 0) + durationHours;
+        } catch (e) { /* Skip if date is invalid */ }
     });
 
-    const weeksInYear = getWeeksInYear(currentYear);
-    const weekLabels = Array.from({ length: weeksInYear }, (_, i) => `Week ${i + 1}`);
+    // Convert the set of week-year labels to a sorted array
+    const weekYearLabels = Array.from(weekYearLabelsSet).sort();
+
+    if (weekYearLabels.length === 0) {
+        console.log('[Charts] No valid weeks found for weekly chart.');
+        return { labels: [], datasets: [] };
+    }
 
     // Sort projects to ensure consistent stacking order
     const projectList = Array.from(projects).sort();
+
+    // Create datasets with cumulative data based on the sorted week labels
     const datasets = projectList.map((project) => {
         let cumulative = 0;
-        const data = weekLabels.map((_, weekIndex) => {
-            cumulative += projectDataByWeek[weekIndex + 1]?.[project] || 0;
-            return cumulative;
+        const data = weekYearLabels.map(weekYearKey => {
+            // Add the hours for the current week/year to the cumulative total
+            cumulative += projectDataByWeekYear[weekYearKey]?.[project] || 0;
+            return cumulative; // Return the cumulative value for this point in time
         });
         return {
             label: project,
@@ -128,7 +167,7 @@ function prepareWeeklyProjectData(sessions) {
     });
 
     // Reverse the datasets array so earlier items appear on top in the stack
-    return { labels: weekLabels, datasets: datasets.reverse() };
+    return { labels: weekYearLabels, datasets: datasets.reverse() };
 }
 
 // Prepare data for pie chart
@@ -164,55 +203,74 @@ function prepareTimeDistributionData(sessions) {
     };
 }
 
-function prepareDayComparisonData(sessions) {
+// Takes filtered sessions for the average calculation, and all sessions for today's calculation
+function prepareDayComparisonData(filteredSessions, allSessions) {
     console.log('[Charts] Preparing day comparison data...');
     const today = new Date();
-    const dayOfWeek = today.getDay();
-    const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
-
-    // Get today's total duration
+    const todayDayOfWeek = today.getDay(); // Day of the week for today (0=Sun, 6=Sat)
     const todayString = today.toISOString().slice(0, 10);
-    const todayTotal = sessions
+
+    // --- Calculate Today's Total (using allSessions) ---
+    const todayTotal = allSessions // Use allSessions here
         .filter(s => s.date === todayString)
         .reduce((total, s) => total + (parseInt(s.duration_minutes) || 0), 0) / 60;
+    console.log(`[Charts] Today's total hours: ${todayTotal.toFixed(2)}`);
 
-    // Get all previous sessions for this day of week (excluding today)
-    const previousDaySessions = sessions.filter(session => {
+    // --- Calculate Average for the Relevant Day(s) within the filteredSessions ---
+    if (!filteredSessions || filteredSessions.length === 0) {
+        console.log('[Charts] No filtered sessions for average calculation.');
+        // Return only Today's data if no filtered data exists for average
+        return {
+            labels: ['Hours Worked'],
+            datasets: [{ label: 'Today', data: [todayTotal], backgroundColor: '#F28E2B' }]
+        };
+    }
+
+    // Group filtered sessions by date to get daily totals within the range
+    const dailyTotalsInRange = {};
+    filteredSessions.forEach(session => {
         try {
             const sessionDate = new Date(session.date + 'T00:00:00');
-            return !isNaN(sessionDate) && 
-                   sessionDate.getDay() === dayOfWeek && 
-                   session.date !== todayString;
-        } catch (e) {
-            return false;
+            if (!isNaN(sessionDate)) {
+                 const dateStr = session.date;
+                 if (!dailyTotalsInRange[dateStr]) {
+                     dailyTotalsInRange[dateStr] = { hours: 0, dayIndex: sessionDate.getDay(), dayName: sessionDate.toLocaleDateString('en-US', { weekday: 'long' }) };
+                 }
+                 dailyTotalsInRange[dateStr].hours += (parseInt(session.duration_minutes) || 0) / 60;
+            }
+        } catch(e) { /* ignore */ }
+    });
+
+    // Calculate average hours for the same day of the week as *today* within the filtered range
+    let averageHoursForTodayDayOfWeek = 0;
+    let countForAverage = 0;
+    let totalHoursForAverage = 0;
+    const todayDayName = today.toLocaleDateString('en-US', { weekday: 'long' });
+
+    Object.values(dailyTotalsInRange).forEach(dailyData => {
+        // Only count days with >0 hours towards the average
+        if (dailyData.dayIndex === todayDayOfWeek && dailyData.hours > 0) {
+            totalHoursForAverage += dailyData.hours;
+            countForAverage++;
         }
     });
 
-    // Group previous sessions by date to get daily totals
-    const dailyTotals = {};
-    previousDaySessions.forEach(session => {
-        if (!dailyTotals[session.date]) {
-            dailyTotals[session.date] = 0;
-        }
-        dailyTotals[session.date] += (parseInt(session.duration_minutes) || 0) / 60;
-    });
+    if (countForAverage > 0) {
+        averageHoursForTodayDayOfWeek = totalHoursForAverage / countForAverage;
+    }
+    console.log(`[Charts] Average hours for ${todayDayName} in range: ${averageHoursForTodayDayOfWeek.toFixed(2)} (based on ${countForAverage} days)`);
 
-    // Calculate average of previous days
-    const previousDaysCount = Object.keys(dailyTotals).length;
-    const averageHours = previousDaysCount > 0 
-        ? Object.values(dailyTotals).reduce((sum, hours) => sum + hours, 0) / previousDaysCount
-        : 0;
 
     // Create datasets for the chart
     const datasets = [
         {
-            label: `Average ${dayName}`,
-            data: [averageHours],
+            label: `Avg ${todayDayName} (Range)`, // Updated label
+            data: [averageHoursForTodayDayOfWeek], // Use calculated average
             backgroundColor: '#888888',
         },
         {
             label: 'Today',
-            data: [todayTotal],
+            data: [todayTotal], // Use today's total calculated earlier
             backgroundColor: '#F28E2B',
         }
     ];
@@ -577,53 +635,59 @@ function destroyCharts() {
     console.log('[Charts] Destroyed existing chart instances.');
 }
 
-// Initialize all charts
-async function initCharts(sessions) {
+// Update all charts based on filtered data and range title
+async function updateCharts(filteredSessions, allSessions, rangeTitle) {
     try {
         checkChartJs();
-        
-        if (!sessions || sessions.length === 0) {
-            console.log('[Charts] No session data to initialize charts.');
+
+        // Update the title display
+        const titleElement = document.getElementById('chart-range-title');
+        if (titleElement) {
+            titleElement.textContent = `Showing data for: ${rangeTitle}`;
+        } else {
+            console.warn('[Charts] chart-range-title element not found.');
+        }
+
+        if (!filteredSessions) {
+            console.log('[Charts] No filtered session data provided to update charts.');
+            // Optionally clear charts or display 'no data' message
+             destroyCharts(); // Destroy existing charts if no data
+             // You might want to draw 'No data' messages on each canvas here
             return { yearlyChart: null, weeklyChart: null, pieChart: null, dayComparisonChart: null };
         }
-
-        console.log('[Charts] Initializing charts with session count:', sessions.length);
-        const currentYear = new Date().getFullYear();
-        const yearlySessions = sessions.filter(session => {
-            try {
-                return session.date && new Date(session.date + 'T00:00:00').getFullYear() === currentYear;
-            } catch (e) { return false; }
-        });
-
-        if (yearlySessions.length === 0) {
-             console.log('[Charts] No session data for the current year.');
-             return { yearlyChart: null, weeklyChart: null, pieChart: null, dayComparisonChart: null };
+        if (!allSessions) {
+             console.warn('[Charts] All session data not provided, Day Comparison chart might be inaccurate.');
+             allSessions = []; // Prevent errors later if it's null/undefined
         }
+
+        console.log(`[Charts] Updating charts for range "${rangeTitle}" with ${filteredSessions.length} sessions.`);
 
         try {
             // Destroy existing charts first
             destroyCharts();
 
-            // Initialize yearly chart
-            const yearlyDailyProjectData = prepareYearlyDailyProjectData(yearlySessions);
+            // --- Recreate charts with filtered data ---
+
+            // Yearly/Daily Chart
+            const dailyProjectData = prepareYearlyDailyProjectData(filteredSessions);
             yearlyChartInstance = await createStackedBarChart(
-                'yearly-chart', 
-                yearlyDailyProjectData.labels, 
-                yearlyDailyProjectData.datasets, 
-                'Hours', 
-                yearlyDailyProjectData.monthLabels
+                'yearly-chart',
+                dailyProjectData.labels,
+                dailyProjectData.datasets,
+                'Hours',
+                dailyProjectData.monthLabels
             );
 
-            // Initialize weekly chart
-            const weeklyProjectData = prepareWeeklyProjectData(yearlySessions);
+            // Weekly Chart
+            const weeklyProjectData = prepareWeeklyProjectData(filteredSessions);
             weeklyChartInstance = await createWeeklyStreamChart('weekly-chart', weeklyProjectData);
 
-            // Initialize pie chart
-            const yearlyPieData = preparePieData(yearlySessions);
-            pieChartInstance = await createPieChart('pie-chart', yearlyPieData.labels, yearlyPieData.data);
+            // Pie Chart
+            const pieData = preparePieData(filteredSessions);
+            pieChartInstance = await createPieChart('pie-chart', pieData.labels, pieData.data);
 
-            // Initialize day comparison chart - add extra validation
-            const dayComparisonData = prepareDayComparisonData(yearlySessions);
+            // Day Comparison Chart (using filtered and all sessions)
+            const dayComparisonData = prepareDayComparisonData(filteredSessions, allSessions);
             if (dayComparisonData.labels.length > 0 && dayComparisonData.datasets.length > 0) {
                 console.log('[Charts] Creating day comparison chart with data:', dayComparisonData);
                 try {
@@ -631,7 +695,7 @@ async function initCharts(sessions) {
                         'day-comparison-chart',
                         dayComparisonData.labels,
                         dayComparisonData.datasets,
-                        'Hours'
+                        'Hours' // Y-axis label isn't really used here due to indexAxis: 'y'
                     );
                     console.log('[Charts] Day comparison chart created:', dayComparisonChartInstance ? 'success' : 'failed');
                 } catch (err) {
@@ -639,8 +703,16 @@ async function initCharts(sessions) {
                 }
             } else {
                 console.log('[Charts] No data available for day comparison chart');
+                // Optionally clear the canvas or display a message
+                const canvas = document.getElementById('day-comparison-chart');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+                    // Optionally draw 'No data' message
+                }
             }
 
+            console.log('[Charts] Finished updating chart instances.');
             return {
                 yearlyChart: yearlyChartInstance,
                 weeklyChart: weeklyChartInstance,
@@ -648,17 +720,17 @@ async function initCharts(sessions) {
                 dayComparisonChart: dayComparisonChartInstance
             };
 
-        } catch(chartError) {
-            console.error("[Charts] Error creating charts:", chartError);
+        } catch (chartError) {
+            console.error("[Charts] Error creating charts during update:", chartError);
             return { yearlyChart: null, weeklyChart: null, pieChart: null, dayComparisonChart: null };
         }
     } catch (error) {
-        console.error("[Charts] Error initializing charts:", error);
+        console.error("[Charts] Error updating charts:", error);
         return { yearlyChart: null, weeklyChart: null, pieChart: null, dayComparisonChart: null };
     }
 }
 
 export {
     destroyCharts,
-    initCharts
+    updateCharts // Export the new function name
 };

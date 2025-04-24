@@ -31,7 +31,7 @@ function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('add-project', async (event, projectData) => {
+    ipcMain.handle('add-project', async (event, projectData) => {
     console.log(`[IPC Handler] Received 'add-project' request:`, projectData);
     try {
       const result = await dataManager.addProject(projectData);
