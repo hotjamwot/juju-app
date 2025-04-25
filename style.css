@@ -105,7 +105,7 @@ table {
     width: 100%;
     border-collapse: collapse;
     color: var(--text-light);
-    font-size: 0.9em;
+    font-size: 0.8em;
 }
 
 th {
@@ -116,7 +116,7 @@ th {
 }
 
 td {
-    padding: 0.5rem 0.75rem;
+    padding: 0.2rem 0.3rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 

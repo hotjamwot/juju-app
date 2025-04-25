@@ -56,7 +56,11 @@ function updateSessionsTable(sessions, refreshDashboardDataCallback) {
         try {
             const dateObj = new Date(session.date + 'T00:00:00');
              if (!isNaN(dateObj.getTime())) {
-                 formattedDate = dateObj.toISOString().slice(0, 10);
+                 // Format date locally instead of using UTC-based toISOString()
+                 const year = dateObj.getFullYear();
+                 const month = (dateObj.getMonth() + 1).toString().padStart(2, '0'); // +1 because months are 0-indexed
+                 const day = dateObj.getDate().toString().padStart(2, '0');
+                 formattedDate = `${year}-${month}-${day}`;
              }
         } catch (e) { /* Keep "Invalid Date" */ }
 

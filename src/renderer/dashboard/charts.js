@@ -85,7 +85,11 @@ function prepareYearlyDailyProjectData(filteredSessions) {
     today.setHours(0, 0, 0, 0); // Normalize today's date
 
     while (currentDate <= maxDate) {
-        const dateStr = currentDate.toISOString().slice(0, 10);
+        // Format date locally instead of using UTC-based toISOString()
+        const year = currentDate.getFullYear();
+        const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+        const day = currentDate.getDate().toString().padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
         allDaysInRange.push(dateStr);
         // Create month labels for the 1st of each month in the range
         if (currentDate.getDate() === 1) {
