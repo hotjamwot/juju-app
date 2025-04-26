@@ -34,11 +34,37 @@
                 </div>
             </div>
 
-            <!-- Third row (day comparison and pie chart) -->
+            <!-- Third row (NEW comparison charts and pie chart) -->
             <div class="chart-row">
-                <div class="chart-container">
-                    <canvas id="day-comparison-chart"></canvas>
+                <!-- Container for the 3 comparison charts -->
+                <div class="chart-container comparison-charts-container">
+
+                    <div class="comparison-chart-item">
+                        <h4 class="comparison-title" id="day-comparison-title">Compared to usual 'DAY'</h4>
+                        <div class="chart-wrapper"> <!-- Wrapper to control canvas size -->
+                             <canvas id="day-comparison-bar-chart"></canvas>
+                        </div>
+                        <div class="comparison-text-details" id="day-comparison-details">Loading...</div>
+                    </div>
+
+                    <div class="comparison-chart-item">
+                        <h4 class="comparison-title" id="week-comparison-title">Compared to usual 'WEEK'</h4>
+                         <div class="chart-wrapper">
+                             <canvas id="week-comparison-bar-chart"></canvas>
+                         </div>
+                         <div class="comparison-text-details" id="week-comparison-details">Loading...</div>
+                    </div>
+
+                    <div class="comparison-chart-item">
+                        <h4 class="comparison-title" id="month-comparison-title">Compared to usual 'MONTH'</h4>
+                         <div class="chart-wrapper">
+                             <canvas id="month-comparison-bar-chart"></canvas>
+                         </div>
+                         <div class="comparison-text-details" id="month-comparison-details">Loading...</div>
+                    </div>
+
                 </div>
+                <!-- Pie chart container remains -->
                 <div class="chart-container">
                     <canvas id="pie-chart"></canvas>
                 </div>

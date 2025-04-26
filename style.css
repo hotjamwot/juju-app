@@ -418,3 +418,51 @@ canvas {
 #apply-custom-date:hover {
     background: #5989b7;
 }
+
+/* --- NEW Comparison Chart Styles --- */
+
+.comparison-charts-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem; /* Space between the stacked charts */
+    height: auto; /* Override fixed height from .chart-container */
+    min-height: 400px; /* Ensure it has some minimum height */
+    padding-bottom: 1rem; /* Add some padding at the bottom */
+}
+
+.comparison-chart-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem; /* Space between title, chart, and text */
+    border-bottom: 1px solid var(--border-color); /* Separator line */
+    padding-bottom: 1rem; /* Space below the separator */
+}
+
+.comparison-chart-item:last-child {
+    border-bottom: none; /* Remove border from the last item */
+    padding-bottom: 0;
+}
+
+.comparison-title {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: var(--text-light);
+    margin: 0 0 0.25rem 0; /* Adjust margin */
+    text-align: left;
+    text-transform: none; /* Override default uppercase if needed */
+    letter-spacing: normal; /* Override default letter-spacing if needed */
+}
+
+.chart-wrapper {
+    height: 60px; /* Define a fixed height for the chart canvas area */
+    width: 100%;
+    position: relative; /* Needed for Chart.js responsiveness */
+}
+
+.comparison-text-details {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    text-align: left;
+    margin-top: 0.25rem;
+    line-height: 1.4;
+}

@@ -4,7 +4,12 @@ import { getDaysInYear, getWeekNumber, getWeeksInYear } from './utils.js';
 let yearlyChartInstance = null;
 let weeklyChartInstance = null;
 let pieChartInstance = null;
-let dayComparisonChartInstance = null;
+// Remove old day comparison chart instance
+// let dayComparisonChartInstance = null;
+// Add new comparison chart instances
+let dayComparisonBarChartInstance = null;
+let weekComparisonBarChartInstance = null;
+let monthComparisonBarChartInstance = null;
 
 // --- Chart Utility Functions ---
 
@@ -188,106 +193,12 @@ function preparePieData(sessions) {
     return { labels, data };
 }
 
-function prepareTimeDistributionData(sessions) {
-    const hourlyData = new Array(24).fill(0);
-    
-    sessions.forEach(session => {
-        if (session.start_time) {
-            const startTime = new Date(session.date + 'T' + session.start_time);
-            if (!isNaN(startTime)) {
-                const hour = startTime.getHours();
-                hourlyData[hour] += (session.duration_minutes || 0) / 60;
-            }
-        }
-    });
-
-    return {
-        labels: Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`),
-        data: hourlyData
-    };
-}
-
-// Takes filtered sessions for the average calculation, and all sessions for today's calculation
-function prepareDayComparisonData(filteredSessions, allSessions) {
-    console.log('[Charts] Preparing day comparison data...');
-    const today = new Date();
-    const todayDayOfWeek = today.getDay(); // Day of the week for today (0=Sun, 6=Sat)
-    const todayString = today.toISOString().slice(0, 10);
-
-    // --- Calculate Today's Total (using allSessions) ---
-    const todayTotal = allSessions // Use allSessions here
-        .filter(s => s.date === todayString)
-        .reduce((total, s) => total + (parseInt(s.duration_minutes) || 0), 0) / 60;
-    console.log(`[Charts] Today's total hours: ${todayTotal.toFixed(2)}`);
-
-    // --- Calculate Average for the Relevant Day(s) within the filteredSessions ---
-    if (!filteredSessions || filteredSessions.length === 0) {
-        console.log('[Charts] No filtered sessions for average calculation.');
-        // Return only Today's data if no filtered data exists for average
-        return {
-            labels: ['Hours Worked'],
-            datasets: [{ label: 'Today', data: [todayTotal], backgroundColor: '#F28E2B' }]
-        };
-    }
-
-    // Group filtered sessions by date to get daily totals within the range
-    const dailyTotalsInRange = {};
-    filteredSessions.forEach(session => {
-        try {
-            const sessionDate = new Date(session.date + 'T00:00:00');
-            if (!isNaN(sessionDate)) {
-                 const dateStr = session.date;
-                 if (!dailyTotalsInRange[dateStr]) {
-                     dailyTotalsInRange[dateStr] = { hours: 0, dayIndex: sessionDate.getDay(), dayName: sessionDate.toLocaleDateString('en-US', { weekday: 'long' }) };
-                 }
-                 dailyTotalsInRange[dateStr].hours += (parseInt(session.duration_minutes) || 0) / 60;
-            }
-        } catch(e) { /* ignore */ }
-    });
-
-    // Calculate average hours for the same day of the week as *today* within the filtered range
-    let averageHoursForTodayDayOfWeek = 0;
-    let countForAverage = 0;
-    let totalHoursForAverage = 0;
-    const todayDayName = today.toLocaleDateString('en-US', { weekday: 'long' });
-
-    Object.values(dailyTotalsInRange).forEach(dailyData => {
-        // Only count days with >0 hours towards the average
-        if (dailyData.dayIndex === todayDayOfWeek && dailyData.hours > 0) {
-            totalHoursForAverage += dailyData.hours;
-            countForAverage++;
-        }
-    });
-
-    if (countForAverage > 0) {
-        averageHoursForTodayDayOfWeek = totalHoursForAverage / countForAverage;
-    }
-    console.log(`[Charts] Average hours for ${todayDayName} in range: ${averageHoursForTodayDayOfWeek.toFixed(2)} (based on ${countForAverage} days)`);
-
-
-    // Create datasets for the chart
-    const datasets = [
-        {
-            label: `Avg ${todayDayName} (Range)`, // Updated label
-            data: [averageHoursForTodayDayOfWeek], // Use calculated average
-            backgroundColor: '#888888',
-        },
-        {
-            label: 'Today',
-            data: [todayTotal], // Use today's total calculated earlier
-            backgroundColor: '#F28E2B',
-        }
-    ];
-
-    return {
-        labels: ['Hours Worked'],
-        datasets
-    };
-}
+// REMOVED prepareTimeDistributionData function (not used)
+// REMOVED prepareDayComparisonData function
 
 // --- Chart Creation Functions ---
 
-// Create a stacked bar chart instance
+// Create a stacked bar chart instance (for yearly chart)
 async function createStackedBarChart(canvasId, labels, datasets, yAxisLabel, monthLabels = null) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) {
@@ -313,9 +224,6 @@ async function createStackedBarChart(canvasId, labels, datasets, yAxisLabel, mon
     }
 
     const ctx = canvas.getContext('2d');
-    
-    // Determine if this is the day comparison chart
-    const isDayComparison = canvasId === 'day-comparison-chart';
 
     // Filter out datasets with all zero values to avoid clutter
     const visibleDatasets = datasets.filter(ds => ds.data.some(val => val > 0));
@@ -327,105 +235,98 @@ async function createStackedBarChart(canvasId, labels, datasets, yAxisLabel, mon
     // Assign colors to datasets
     visibleDatasets.forEach((dataset, index) => {
         dataset.backgroundColor = colors[index];
-        if (isDayComparison) {
-            dataset.barThickness = 25; // Increased bar thickness for day comparison
-            dataset.minBarLength = 5; // Minimum bar length for better visibility
-        }
+        // Remove day comparison specific styling
+        // if (isDayComparison) { ... }
     });
 
     return new Chart(ctx, {
         type: 'bar',
-        data: { 
-            labels: labels, 
-            datasets: visibleDatasets 
+        data: {
+            labels: labels,
+            datasets: visibleDatasets
         },
         options: {
-            indexAxis: isDayComparison ? 'y' : 'x',
+            // Remove indexAxis: 'y' logic related to day comparison
+            indexAxis: 'x', // Default to x-axis
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: {
-                    top: isDayComparison ? 20 : 0,
-                    bottom: isDayComparison ? 20 : 0,
-                    left: isDayComparison ? 10 : 0,
-                    right: isDayComparison ? 10 : 0
-                }
+                // Remove padding logic related to day comparison
+                padding: { top: 0, bottom: 0, left: 0, right: 0 }
             },
             scales: {
                 x: {
-                    stacked: !isDayComparison,
-                    position: isDayComparison ? 'top' : 'bottom',
-                    grid: { 
-                        display: !isDayComparison,
+                    stacked: true, // Keep stacked for yearly
+                    // Remove position logic related to day comparison
+                    position: 'bottom',
+                    grid: {
+                        display: true, // Keep grid for yearly
                         color: 'rgba(224, 224, 224, 0.1)'
                     },
                     ticks: {
                         color: '#E0E0E0',
-                        font: {
-                            size: isDayComparison ? 12 : 11
-                        },
-                        callback: isDayComparison ? 
-                            value => value.toFixed(1) : // Show decimal hours for day comparison
-                            function(value, index) { // Original date formatting for other charts
-                                if (!labels || index >= labels.length) return '';
-                                const labelValue = labels[index];
-                                if (monthLabels && monthLabels[labelValue]) {
-                                    return monthLabels[labelValue];
-                                }
-                                if (monthLabels && labelValue && labelValue.includes('-')) {
-                                    try {
-                                        const date = new Date(labelValue + 'T00:00:00');
-                                        if (!isNaN(date.getTime()) && date.getDate() !== 1) {
-                                            return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
-                                        } else if (isNaN(date.getTime())) {
-                                            return labelValue;
-                                        }
-                                        return '';
-                                    } catch (e) { return labelValue; }
-                                }
-                                return labelValue;
+                        // Remove font size logic related to day comparison
+                        font: { size: 11 },
+                        // Keep original date formatting callback
+                        callback: function(value, index) {
+                            if (!labels || index >= labels.length) return '';
+                            const labelValue = labels[index];
+                            if (monthLabels && monthLabels[labelValue]) {
+                                return monthLabels[labelValue];
                             }
+                            if (monthLabels && labelValue && labelValue.includes('-')) {
+                                try {
+                                    const date = new Date(labelValue + 'T00:00:00');
+                                    if (!isNaN(date.getTime()) && date.getDate() !== 1) {
+                                        return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+                                    } else if (isNaN(date.getTime())) {
+                                        return labelValue;
+                                    }
+                                    return '';
+                                } catch (e) { return labelValue; }
+                            }
+                            return labelValue;
+                        }
                     }
                 },
                 y: {
-                    stacked: !isDayComparison,
-                    grid: { 
-                        display: !isDayComparison,
+                    stacked: true, // Keep stacked for yearly
+                    grid: {
+                        display: true, // Keep grid for yearly
                         color: 'rgba(224, 224, 224, 0.1)'
                     },
-                    position: isDayComparison ? 'left' : 'right',
-                    title: isDayComparison ? undefined : { 
-                        display: true, 
-                        text: yAxisLabel, 
-                        color: '#E0E0E0' 
+                    // Remove position logic related to day comparison
+                    position: 'right',
+                    // Keep title for yearly
+                    title: {
+                        display: true,
+                        text: yAxisLabel,
+                        color: '#E0E0E0'
                     },
                     ticks: {
                         color: '#E0E0E0',
-                        font: {
-                            size: isDayComparison ? 13 : 11
-                        },
-                        padding: isDayComparison ? 15 : 5
+                        // Remove font size/padding logic related to day comparison
+                        font: { size: 11 },
+                        padding: 5
                     }
                 }
             },
             plugins: {
-                legend: { 
+                legend: {
                     display: true,
-                    position: isDayComparison ? 'bottom' : 'top',
-                    labels: { 
+                    // Remove position logic related to day comparison
+                    position: 'top',
+                    labels: {
                         color: '#E0E0E0',
-                        font: {
-                            size: 12
-                        },
+                        font: { size: 12 },
                         padding: 15
                     }
                 },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            // Ensure the tooltip shows only the hovered project category
                             const dataset = context.dataset;
-                            const value = context.raw; // Use raw value for the hovered data point
+                            const value = context.raw;
                             return `${dataset.label}: ${value.toFixed(1)} hours`;
                         }
                     }
@@ -434,6 +335,120 @@ async function createStackedBarChart(canvasId, labels, datasets, yAxisLabel, mon
         }
     });
 }
+
+// --- NEW Simple Comparison Chart Function ---
+/**
+ * Creates a simple horizontal bar chart for comparing two values.
+ * @param {string} canvasId - The ID of the canvas element.
+ * @param {string} label1 - Label for the first bar.
+ * @param {number} value1 - Value for the first bar.
+ * @param {string} label2 - Label for the second bar.
+ * @param {number} value2 - Value for the second bar.
+ * @returns {Chart|null} Chart.js instance or null on error.
+ */
+function createSimpleComparisonChart(canvasId, label1, value1, label2, value2) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+        console.error(`[Charts] Canvas element with ID ${canvasId} not found.`);
+        return null;
+    }
+    if (typeof Chart === 'undefined') {
+        console.error('[Charts] Chart.js is not loaded.');
+        return null;
+    }
+    const ctx = canvas.getContext('2d');
+
+    // Define colors (adjust as needed)
+    const color1 = '#888888'; // Color for the 'previous' or 'average' bar
+    const color2 = '#F28E2B'; // Color for the 'current' or 'today' bar
+
+    // Ensure values are numbers
+    const val1 = Number(value1) || 0;
+    const val2 = Number(value2) || 0;
+
+    return new Chart(ctx, {
+        type: 'bar',
+        data: {
+            // Use a single category label on the y-axis (or none)
+            labels: ['Hours'],
+            datasets: [
+                {
+                    label: label1,
+                    data: [val1],
+                    backgroundColor: color1,
+                    borderColor: color1,
+                    borderWidth: 1,
+                    barPercentage: 0.6, // Adjust thickness
+                    categoryPercentage: 0.8 // Adjust spacing between bars if multiple categories existed
+                },
+                {
+                    label: label2,
+                    data: [val2],
+                    backgroundColor: color2,
+                    borderColor: color2,
+                    borderWidth: 1,
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.8
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y', // Horizontal bars
+            responsive: true,
+            maintainAspectRatio: false, // Allow resizing within wrapper
+            layout: {
+                padding: { top: 5, bottom: 5, left: 5, right: 20 } // Add padding for labels
+            },
+            scales: {
+                x: { // Value axis (hours)
+                    beginAtZero: true,
+                    position: 'top', // Show hours scale at the top
+                    grid: {
+                        display: false, // Hide grid lines for simplicity
+                        drawBorder: false,
+                    },
+                    ticks: {
+                        color: '#AAAAAA',
+                        font: { size: 10 },
+                        maxTicksLimit: 5, // Limit number of ticks
+                        callback: value => value.toFixed(1) + 'h' // Format as hours
+                    }
+                },
+                y: { // Category axis
+                    grid: {
+                        display: false, // Hide grid lines
+                        drawBorder: false,
+                    },
+                    ticks: {
+                        display: false // Hide the 'Hours' label on the y-axis
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false // Hide the legend, labels are clear enough
+                },
+                tooltip: {
+                    enabled: true, // Keep tooltips
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.parsed.x.toFixed(1)} hours`;
+                        }
+                    }
+                },
+                // Optional: Add datalabels plugin if you want values directly on bars
+                // datalabels: {
+                //     anchor: 'end',
+                //     align: 'right',
+                //     formatter: (value) => value.toFixed(1) + 'h',
+                //     color: '#E0E0E0',
+                //     font: { size: 10 }
+                // }
+            }
+        }
+    });
+}
+
 
 // Create a pie chart instance
 async function createPieChart(canvasId, labels, data) {
@@ -633,11 +648,40 @@ function checkChartJs() {
 function destroyCharts() {
     if (yearlyChartInstance) yearlyChartInstance.destroy();
     if (weeklyChartInstance) weeklyChartInstance.destroy();
-    if (pieChartInstance) pieChartInstance.destroy(); // Fixed: was using yearlyChartInstance instead of pieChartInstance
-    if (dayComparisonChartInstance) dayComparisonChartInstance.destroy();
-    yearlyChartInstance = weeklyChartInstance = pieChartInstance = dayComparisonChartInstance = null;
+    if (pieChartInstance) pieChartInstance.destroy();
+    // Remove old day comparison chart instance
+    // if (dayComparisonChartInstance) dayComparisonChartInstance.destroy();
+    // Destroy new comparison charts
+    if (dayComparisonBarChartInstance) dayComparisonBarChartInstance.destroy();
+    if (weekComparisonBarChartInstance) weekComparisonBarChartInstance.destroy();
+    if (monthComparisonBarChartInstance) monthComparisonBarChartInstance.destroy();
+
+    yearlyChartInstance = weeklyChartInstance = pieChartInstance = null;
+    dayComparisonBarChartInstance = weekComparisonBarChartInstance = monthComparisonBarChartInstance = null;
     console.log('[Charts] Destroyed existing chart instances.');
 }
+
+// Helper function to calculate percentage change and format string
+function formatComparisonText(current, previous) {
+    const currentVal = current.value || 0;
+    const previousVal = previous.value || 0;
+    let percentageChange = 0;
+    let sign = '';
+    let percentageStr = ' (---%)'; // Default if previous is zero
+
+    if (previousVal > 0) {
+        percentageChange = ((currentVal - previousVal) / previousVal) * 100;
+        sign = percentageChange >= 0 ? '+' : '';
+        percentageStr = ` (${sign}${percentageChange.toFixed(1)}%)`;
+    } else if (currentVal > 0) {
+        // If previous was 0 and current is > 0, it's a positive change but percentage is infinite
+        percentageStr = ' (+Inf%)'; // Or some other indicator
+    }
+    // If both are 0, default ' (---%)' is fine
+
+    return `${currentVal.toFixed(1)}h vs ${previousVal.toFixed(1)}h${percentageStr}`;
+}
+
 
 // Update all charts based on filtered data and range title
 async function updateCharts(filteredSessions, allSessions, rangeTitle) {
@@ -652,25 +696,93 @@ async function updateCharts(filteredSessions, allSessions, rangeTitle) {
             console.warn('[Charts] chart-range-title element not found.');
         }
 
-        if (!filteredSessions) {
-            console.log('[Charts] No filtered session data provided to update charts.');
-            // Optionally clear charts or display 'no data' message
-             destroyCharts(); // Destroy existing charts if no data
-             // You might want to draw 'No data' messages on each canvas here
-            return { yearlyChart: null, weeklyChart: null, pieChart: null, dayComparisonChart: null };
-        }
-        if (!allSessions) {
-             console.warn('[Charts] All session data not provided, Day Comparison chart might be inaccurate.');
-             allSessions = []; // Prevent errors later if it's null/undefined
+        // Destroy existing charts first (now includes comparison charts)
+        destroyCharts();
+
+        // --- Update Comparison Stats (Charts & Text) ---
+        let comparisonStats = null;
+        try {
+            console.log('[Charts] Fetching comparison stats...');
+            comparisonStats = await window.api.getComparisonStats();
+            console.log('[Charts] Received comparison stats:', comparisonStats);
+
+            if (comparisonStats) {
+                // Day Comparison
+                const dayData = comparisonStats.day;
+                dayComparisonBarChartInstance = createSimpleComparisonChart(
+                    'day-comparison-bar-chart',
+                    dayData.previous.label, dayData.previous.value, // Avg first
+                    dayData.current.label, dayData.current.value    // Today second
+                );
+                const dayDetailsEl = document.getElementById('day-comparison-details');
+                if (dayDetailsEl) {
+                    dayDetailsEl.textContent = formatComparisonText(dayData.current, dayData.previous) + ` [${dayData.current.range} vs ${dayData.previous.label}]`;
+                }
+                const dayTitleEl = document.getElementById('day-comparison-title');
+                if (dayTitleEl) dayTitleEl.textContent = `Compared to usual '${dayData.previous.label.split(' ')[1]}'`;
+
+
+                // Week Comparison
+                const weekData = comparisonStats.week;
+                weekComparisonBarChartInstance = createSimpleComparisonChart(
+                    'week-comparison-bar-chart',
+                    weekData.previous.label, weekData.previous.value, // Last week first
+                    weekData.current.label, weekData.current.value    // This week second
+                );
+                 const weekDetailsEl = document.getElementById('week-comparison-details');
+                 if (weekDetailsEl) {
+                     weekDetailsEl.textContent = formatComparisonText(weekData.current, weekData.previous) + ` [${weekData.current.range} vs ${weekData.previous.range}]`;
+                 }
+
+                // Month Comparison
+                const monthData = comparisonStats.month;
+                monthComparisonBarChartInstance = createSimpleComparisonChart(
+                    'month-comparison-bar-chart',
+                    monthData.previous.label, monthData.previous.value, // Last month first
+                    monthData.current.label, monthData.current.value    // This month second
+                );
+                 const monthDetailsEl = document.getElementById('month-comparison-details');
+                 if (monthDetailsEl) {
+                     monthDetailsEl.textContent = formatComparisonText(monthData.current, monthData.previous) + ` [${monthData.current.range} vs ${monthData.previous.range}]`;
+                 }
+            } else {
+                 console.warn('[Charts] No comparison stats received from backend.');
+                 // Optionally clear comparison chart areas or show 'Error'
+                 document.getElementById('day-comparison-details').textContent = 'No stats data';
+                 document.getElementById('week-comparison-details').textContent = 'No stats data';
+                 document.getElementById('month-comparison-details').textContent = 'No stats data';
+            }
+
+        } catch (statsError) {
+            console.error('[Charts] Error fetching or processing comparison stats:', statsError);
+            // Optionally clear comparison chart areas or show 'Error'
+            document.getElementById('day-comparison-details').textContent = 'Error loading stats';
+            document.getElementById('week-comparison-details').textContent = 'Error loading stats';
+            document.getElementById('month-comparison-details').textContent = 'Error loading stats';
         }
 
-        console.log(`[Charts] Updating charts for range "${rangeTitle}" with ${filteredSessions.length} sessions.`);
+
+        // --- Recreate main charts with filtered data ---
+        // Only proceed if filteredSessions exist (otherwise comparison stats might still load)
+        if (!filteredSessions || filteredSessions.length === 0) {
+            console.log('[Charts] No filtered session data provided for main charts.');
+            // Clear main chart canvases explicitly if needed
+            ['yearly-chart', 'weekly-chart', 'pie-chart'].forEach(id => {
+                const canvas = document.getElementById(id);
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    // Optionally draw 'No data' message
+                }
+            });
+            return { yearlyChart: null, weeklyChart: null, pieChart: null }; // Return nulls for main charts
+        }
+
+
+        console.log(`[Charts] Updating main charts for range "${rangeTitle}" with ${filteredSessions.length} sessions.`);
 
         try {
-            // Destroy existing charts first
-            destroyCharts();
-
-            // --- Recreate charts with filtered data ---
+            // Yearly/Daily Chart
 
             // Yearly/Daily Chart
             const dailyProjectData = prepareYearlyDailyProjectData(filteredSessions);
@@ -690,47 +802,30 @@ async function updateCharts(filteredSessions, allSessions, rangeTitle) {
             const pieData = preparePieData(filteredSessions);
             pieChartInstance = await createPieChart('pie-chart', pieData.labels, pieData.data);
 
-            // Day Comparison Chart (using filtered and all sessions)
-            const dayComparisonData = prepareDayComparisonData(filteredSessions, allSessions);
-            if (dayComparisonData.labels.length > 0 && dayComparisonData.datasets.length > 0) {
-                console.log('[Charts] Creating day comparison chart with data:', dayComparisonData);
-                try {
-                    dayComparisonChartInstance = await createStackedBarChart(
-                        'day-comparison-chart',
-                        dayComparisonData.labels,
-                        dayComparisonData.datasets,
-                        'Hours' // Y-axis label isn't really used here due to indexAxis: 'y'
-                    );
-                    console.log('[Charts] Day comparison chart created:', dayComparisonChartInstance ? 'success' : 'failed');
-                } catch (err) {
-                    console.error('[Charts] Failed to create day comparison chart:', err);
-                }
-            } else {
-                console.log('[Charts] No data available for day comparison chart');
-                // Optionally clear the canvas or display a message
-                const canvas = document.getElementById('day-comparison-chart');
-                if (canvas) {
-                    const ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
-                    // Optionally draw 'No data' message
-                }
-            }
+            // --- Update Comparison Stats (Charts & Text) ---
+            // This part will be added in the next step:
+            // 1. Call window.api.invoke('get-comparison-stats')
+            // 2. Call createSimpleComparisonChart three times
+            // 3. Update text details elements
 
-            console.log('[Charts] Finished updating chart instances.');
+            console.log('[Charts] Finished updating main chart instances (comparison stats pending).');
+            // Return references to the main charts (comparison charts managed internally for now)
             return {
                 yearlyChart: yearlyChartInstance,
                 weeklyChart: weeklyChartInstance,
                 pieChart: pieChartInstance,
-                dayComparisonChart: dayComparisonChartInstance
+                // Remove old day comparison chart reference
             };
 
         } catch (chartError) {
             console.error("[Charts] Error creating charts during update:", chartError);
-            return { yearlyChart: null, weeklyChart: null, pieChart: null, dayComparisonChart: null };
+            // Return nulls on error
+            return { yearlyChart: null, weeklyChart: null, pieChart: null };
         }
     } catch (error) {
         console.error("[Charts] Error updating charts:", error);
-        return { yearlyChart: null, weeklyChart: null, pieChart: null, dayComparisonChart: null };
+         // Return nulls on error
+        return { yearlyChart: null, weeklyChart: null, pieChart: null };
     }
 }
 

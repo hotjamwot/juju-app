@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('api', {
   addProject: (projectData) => ipcRenderer.invoke('add-project', projectData),
   deleteProject: (id) => ipcRenderer.invoke('delete-project', id),
   updateProjectColor: (id, color) => ipcRenderer.invoke('update-project-color', id, color),
+  // Add the new handler
+  getComparisonStats: () => ipcRenderer.invoke('get-comparison-stats'),
 });
 
 // Window ID storage
