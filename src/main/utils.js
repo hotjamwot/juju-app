@@ -56,10 +56,21 @@ function formatShortDate(date) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/**
+ * Converts a day index (0-6) to its name.
+ * @param {number} dayIndex - The day index (0 = Sunday, 1 = Monday, etc.)
+ * @returns {string} The name of the day
+ */
+function getDayName(dayIndex) {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[dayIndex];
+}
+
 module.exports = {
-  formatDuration,
-  getStartOfWeek,
-  getStartOfMonth,
-  formatDateYYYYMMDD,
-  formatShortDate,
+    formatDuration,
+    getStartOfWeek,
+    getStartOfMonth,
+    formatDateYYYYMMDD,
+    formatShortDate,
+    getDayName
 };

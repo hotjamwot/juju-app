@@ -174,9 +174,22 @@ input[type="text"] {
     position: relative;
     box-sizing: border-box;
     min-width: 0;
-    height: 50vh;
     width: 100%;
-    margin-bottom: 2rem; /* Add spacing for standalone charts */
+    margin-bottom: 2rem;
+}
+
+/* Special height handling for different chart types */
+.yearly-chart {
+    height: 50vh;
+}
+
+.chart-row .chart-container:not(.comparison-charts-container) {
+    height: 350px; /* Set fixed height for regular charts in rows */
+}
+
+.comparison-charts-container {
+    height: 350px; /* Match the height of the pie chart */
+    padding: calc(var(--card-padding) / 2);
 }
 
 .no-data {
@@ -419,50 +432,47 @@ canvas {
     background: #5989b7;
 }
 
-/* --- NEW Comparison Chart Styles --- */
-
+/* --- Comparison Chart Styles --- */
 .comparison-charts-container {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem; /* Space between the stacked charts */
-    height: auto; /* Override fixed height from .chart-container */
-    min-height: 400px; /* Ensure it has some minimum height */
-    padding-bottom: 1rem; /* Add some padding at the bottom */
+    gap: 0;
+    height: auto;
+    padding: 0.5rem;
+    justify-content: space-between;
 }
 
 .comparison-chart-item {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem; /* Space between title, chart, and text */
-    border-bottom: 1px solid var(--border-color); /* Separator line */
-    padding-bottom: 1rem; /* Space below the separator */
+    gap: 0.25rem;
+    flex: 1;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .comparison-chart-item:last-child {
-    border-bottom: none; /* Remove border from the last item */
+    border-bottom: none;
     padding-bottom: 0;
 }
 
 .comparison-title {
-    font-size: 0.9em;
+    font-size: 0.85em;
     font-weight: 500;
-    color: var(--text-light);
-    margin: 0 0 0.25rem 0; /* Adjust margin */
+    color: var(--text-muted);
+    margin: 0;
     text-align: left;
-    text-transform: none; /* Override default uppercase if needed */
-    letter-spacing: normal; /* Override default letter-spacing if needed */
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 .chart-wrapper {
-    height: 60px; /* Define a fixed height for the chart canvas area */
+    height: 110px; /* Increased height for better visibility */
     width: 100%;
-    position: relative; /* Needed for Chart.js responsiveness */
+    position: relative;
+    margin: 0.25rem 0; /* Reduced margins to use more vertical space */
 }
 
 .comparison-text-details {
-    font-size: 0.8em;
-    color: var(--text-muted);
-    text-align: left;
-    margin-top: 0.25rem;
-    line-height: 1.4;
+    display: none; /* Hide the details text */
 }
