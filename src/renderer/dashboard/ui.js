@@ -25,32 +25,35 @@ function setupTabs() {
 }
 
 // --- Sessions Table ---
-function updateSessionsTable(sessions, refreshDashboardDataCallback) {
+/**
+ * Updates the sessions table body with the provided session data.
+ * Assumes the provided sessions are already filtered, sorted, and paginated.
+ * @param {Array<Object>} visibleSessions - The array of session objects to display.
+ * @param {Function} refreshDashboardDataCallback - Callback function to refresh all dashboard data on edit.
+ */
+function updateSessionsTable(visibleSessions, refreshDashboardDataCallback) {
     if (!recentSessionsBody) {
         console.error('[UI] Cannot update sessions table: recentSessionsBody element not found.');
         return;
     }
 
-    // Sort sessions by date & start time (most recent first)
-    sessions.sort((a, b) => {
-        const dateA = new Date(`${a.date || ''}T${a.start_time || ''}`).getTime();
-        const dateB = new Date(`${b.date || ''}T${b.start_time || ''}`).getTime();
-        return (isNaN(dateB) ? 0 : dateB) - (isNaN(dateA) ? 0 : dateA);
-    });
+    // Clear previous content
+    recentSessionsBody.innerHTML = '';
 
-    recentSessionsBody.innerHTML = ''; // Clear previous content
-    const displaySessions = sessions.slice(0, 20); // Display top 20
-
-    if (displaySessions.length === 0) {
+    // Check if there are sessions to display for the current page/filter
+    if (!visibleSessions || visibleSessions.length === 0) {
         recentSessionsBody.innerHTML = `
-            <tr><td colspan="6" class="no-data">No sessions recorded yet. Use the tray menu to start tracking.</td></tr>`;
+            <tr><td colspan="6" class="no-data">No sessions match the current filter or page.</td></tr>`;
+        // Do not add edit listeners if there's no data
+        console.log('[UI] Sessions table updated with no data message.');
         return;
     }
 
     // Add each session row to the table
-    displaySessions.forEach(session => {
+    visibleSessions.forEach(session => {
         const row = document.createElement('tr');
-        row.setAttribute('data-session-id', session.id);
+        // Use a unique key if possible, combining id and maybe timestamp if id isn't truly unique across loads
+        row.setAttribute('data-session-key', `${session.id}-${session.date}-${session.start_time}`); // Example key
 
         let formattedDate = "Invalid Date";
         try {

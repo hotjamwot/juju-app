@@ -94,6 +94,13 @@
 
         <!-- Sessions Tab Content -->
         <div id="sessions" class="tab-content">
+            <div class="sessions-controls">
+                 <label for="project-filter-select">Filter by Project:</label>
+                 <select id="project-filter-select" class="input-base">
+                     <option value="All">All Projects</option>
+                     <!-- Options will be populated by JavaScript -->
+                 </select>
+            </div>
             <div id="recent-sessions-table-container">
                 <table id="recent-sessions-table">
                     <thead>
@@ -111,6 +118,11 @@
                     </tbody>
                 </table>
             </div>
+             <div class="pagination-controls">
+                 <button id="prev-page-btn" class="btn btn-primary" disabled>< Previous</button>
+                 <span id="page-info">Page 1 of 1</span>
+                 <button id="next-page-btn" class="btn btn-primary" disabled>Next ></button>
+             </div>
         </div>
 
         <!-- Projects Tab Content -->

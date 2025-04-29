@@ -32,7 +32,6 @@ body {
     gap: 1rem;
     padding: 0;
     min-height: 100vh;
-    /* box-sizing: border-box; <- Removed, handled globally */
 }
 
 .dashboard-header {
@@ -59,7 +58,7 @@ h1 {
     font-size: 24px;
     margin: 0;
     padding: 20px;
-    background-color: #333333; 
+    background-color: #333333;
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -142,18 +141,7 @@ input[type="text"] {
     padding: 8px;
     border: 1px solid #555;
     border-radius: 4px;
-    /* box-sizing: border-box; <- Removed, handled globally */
     background-color: #444;
-    color: var(--text-light);
-}
-
-/* Base input style used elsewhere */
-input[type="text"] {
-    width: 100%;
-    padding: 8px; /* Slightly different padding, keep for now or adjust base */
-    border: 1px solid #555;
-    border-radius: 4px;
-    background-color: #444; /* Different background, keep for now */
     color: var(--text-light);
 }
 
@@ -187,7 +175,6 @@ input[type="text"] {
     border-radius: var(--border-radius);
     padding: var(--card-padding);
     position: relative;
-    /* box-sizing: border-box; <- Removed, handled globally */
     min-width: 0;
     width: 100%;
     margin-bottom: 2rem;
@@ -219,23 +206,11 @@ canvas {
     max-width: 100%;
 }
 
-/* General styling for table cells in the sessions tab */
-#sessions-projects th,
-#sessions-projects td {
-    font-weight: 400;
-    padding: 8px 10px; 
-    vertical-align: top; 
-    text-align: left; 
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
 /* Styling specifically for the notes editing textarea */
 #recent-sessions-body td .inline-edit-input[type="textarea"] {
     display: block;
     width: 400px;
     max-width: 100%;
-    /* box-sizing: border-box; <- Removed, handled globally */
     height: 5em;
     padding: 6px 8px;
     margin: 0;
@@ -243,7 +218,7 @@ canvas {
     background-color: #333;
     color: var(--text-light);
     border-radius: 3px;
-    resize: vertical; 
+    resize: vertical;
     font-family: inherit;
     font-size: inherit;
     line-height: 1.4;
@@ -343,8 +318,7 @@ canvas {
 }
 
 /* .delete-project styles moved to .btn-danger */
-/* Keep selector for potential JS targeting if needed, but remove style */
-.delete-project { }
+.delete-project { /* Kept selector for potential JS targeting */ }
 
 /* Date Filter Controls Styles */
 .date-filter-controls {
@@ -378,8 +352,7 @@ canvas {
 }
 
 /* .date-filter-btn styles moved to .btn-filter */
-/* Keep selector for potential JS targeting if needed, but remove style */
-.date-filter-btn { }
+.date-filter-btn { /* Kept selector for potential JS targeting */ }
 
 .date-filter-custom {
     display: flex;
@@ -396,12 +369,10 @@ canvas {
 }
 
 /* .date-filter-custom input[type="date"] styles moved to .input-base and input[type="date"].input-base */
-/* Keep selector for potential JS targeting if needed, but remove style */
-.date-filter-custom input[type="date"] { }
+.date-filter-custom input[type="date"] { /* Kept selector for potential JS targeting */ }
 
 /* #apply-custom-date styles moved to .btn and .btn-primary */
-/* Keep selector for potential JS targeting if needed, but remove style */
-#apply-custom-date { }
+#apply-custom-date { /* Kept selector for potential JS targeting */ }
 
 
 /* --- Base Component Styles --- */
@@ -416,10 +387,17 @@ canvas {
     transition: background-color 0.2s ease;
 }
 
+.btn:disabled {
+    background-color: #555; /* Darker grey for disabled state */
+    color: #999; /* Lighter text for disabled state */
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
 .btn-primary {
     background: var(--primary-blue);
 }
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) { /* Only apply hover if not disabled */
     background: #5989b7;
 }
 
@@ -427,7 +405,7 @@ canvas {
     padding: 0.25rem 0.75rem; /* Keep specific padding */
     background: var(--danger-red);
 }
-.btn-danger:hover {
+.btn-danger:hover:not(:disabled) {
     background: #e86b6d;
 }
 
@@ -437,7 +415,7 @@ canvas {
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: var(--text-muted);
 }
-.btn-filter:hover {
+.btn-filter:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.15);
     color: var(--text-light);
 }
@@ -458,15 +436,21 @@ canvas {
 }
 
 /* Specific input type adjustments if needed */
-input[type="text"].input-base {
-    /* Add specific text input styles here if different from base */
-    /* Example: background-color: #444; if needed */
-    /* Using the style from #add-project-form input */
-}
-
 input[type="date"].input-base {
     padding: 0.3rem 0.5rem; /* Keep specific padding */
     color-scheme: dark;
+}
+
+select.input-base {
+    /* Add specific select styles if needed */
+    padding-right: 1.5rem; /* Space for dropdown arrow */
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23cccccc' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1em;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
 }
 
 /* --- End Base Component Styles --- */
@@ -515,4 +499,40 @@ input[type="date"].input-base {
 
 .comparison-text-details {
     display: none; /* Hide the details text */
+}
+
+/* --- Session Tab Specific Styles --- */
+.sessions-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem; /* Space between controls and table */
+    padding: 0.5rem 0; /* Padding around the controls */
+}
+
+.sessions-controls label {
+    font-size: 0.9em;
+    color: var(--text-muted);
+}
+
+#project-filter-select {
+    min-width: 150px; /* Give the dropdown a minimum width */
+    flex-grow: 0; /* Don't let it grow excessively */
+}
+
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem; 
+    padding: 0.5rem 0; 
+}
+
+.pagination-controls span {
+    font-size: 0.9em;
+    color: var(--text-muted);
+}
+
+#recent-sessions-table-container {
+    /* overflow-x: auto; */
 }

@@ -7,16 +7,28 @@
 
         // --- Global Variables ---
         let allSessions = []; // Store all loaded sessions
-        let currentFilter = '1y'; // Default filter
-        let currentRangeTitle = 'This Year'; // Default title
+        let currentChartFilter = '1y'; // Default CHART filter
+        let currentChartRangeTitle = 'This Year'; // Default CHART title
 
-        // --- DOM Elements for Filters ---
-        const dateFilterButtons = document.querySelectorAll('.date-filter-btn');
+        // Session Table State
+        const pageSize = 20;
+        let currentPage = 1;
+        let currentProjectFilter = 'All'; // Default project filter
+
+        // --- DOM Elements ---
+        // Chart Filters
+        const dateFilterButtons = document.querySelectorAll('.btn-filter'); // Use updated class
         const dateFromInput = document.getElementById('date-from');
         const dateToInput = document.getElementById('date-to');
         const applyCustomDateButton = document.getElementById('apply-custom-date');
+        // Session Table Controls
+        const projectFilterSelect = document.getElementById('project-filter-select');
+        const prevPageBtn = document.getElementById('prev-page-btn');
+        const nextPageBtn = document.getElementById('next-page-btn');
+        const pageInfoSpan = document.getElementById('page-info');
 
-        // --- Date Filtering Logic ---
+
+        // --- Chart Date Filtering Logic ---
 
         /**
          * Calculates the start and end dates for a given range identifier.
@@ -132,13 +144,13 @@
 
             if (rangeTitle === 'Invalid Range') return; // Stop if date calculation failed
 
-            const filteredSessions = filterSessionsByDate(startDate, endDate);
-            console.log(`[Dashboard] Filtered sessions count for "${rangeTitle}": ${filteredSessions.length}`);
+            const filteredSessionsForChart = filterSessionsByDate(startDate, endDate);
+            console.log(`[Dashboard] Filtered sessions count for chart "${rangeTitle}": ${filteredSessionsForChart.length}`);
 
-            currentFilter = range; // Store the current filter type
-            currentRangeTitle = rangeTitle; // Store the title
+            currentChartFilter = range; // Store the current CHART filter type
+            currentChartRangeTitle = rangeTitle; // Store the CHART title
 
-            // Update button active states
+            // Update CHART filter button active states
             dateFilterButtons.forEach(btn => {
                 if (btn.dataset.range === range) {
                     btn.classList.add('active');
@@ -146,15 +158,20 @@
                     btn.classList.remove('active');
                 }
             });
-            // If custom range applied, remove active state from predefined buttons
+            // If custom CHART range applied, remove active state from predefined buttons
             if (range === 'custom') {
-                 dateFilterButtons.forEach(btn => btn.classList.remove('active'));
+                 dateFilterButtons.forEach(btn => {
+                     // Only remove active if it's not a session control button
+                     if (btn.closest('.date-filter-buttons')) {
+                         btn.classList.remove('active');
+                     }
+                 });
             }
 
 
             // Update charts with the filtered data
             try {
-                await updateCharts(filteredSessions, allSessions, rangeTitle); // Pass filtered and all sessions
+                await updateCharts(filteredSessionsForChart, allSessions, rangeTitle); // Pass filtered and all sessions
             } catch (error) {
                 console.error(`[Dashboard] Error updating charts for range ${range}:`, error);
             }
@@ -168,24 +185,126 @@
                 allSessions = await window.api.loadSessions();
                 console.log('[Dashboard] Refreshed sessions data count:', allSessions.length);
 
-                // 2. Update sessions table (always shows recent, unfiltered)
-                updateSessionsTable(allSessions, refreshDashboardData);
-
-                // 3. Apply the *current* filter and update charts
-                // Use currentFilter and currentRangeTitle stored globally
-                let initialStartDate, initialEndDate;
-                if (currentFilter === 'custom') {
-                    ({ startDate: initialStartDate, endDate: initialEndDate } = getDatesForRange(currentFilter, dateFromInput.value, dateToInput.value));
-                } else {
-                    ({ startDate: initialStartDate, endDate: initialEndDate } = getDatesForRange(currentFilter));
+                // 2. Populate Project Filter Dropdown (only needs to happen once or when projects change significantly)
+                // We'll call this after the first load, and potentially after project edits if needed.
+                // For now, just call after first load.
+                if (projectFilterSelect.options.length <= 1) { // Avoid repopulating unnecessarily
+                    populateProjectFilter();
                 }
-                const initialFilteredSessions = filterSessionsByDate(initialStartDate, initialEndDate);
-                await updateCharts(initialFilteredSessions, allSessions, currentRangeTitle);
+
+                // 3. Update the session display (filtering, pagination, table update)
+                refreshSessionDisplay(); // This now handles table updates
+
+                // 4. Apply the *current* CHART filter and update charts
+                // Use currentChartFilter and currentChartRangeTitle stored globally
+                let initialStartDate, initialEndDate;
+                if (currentChartFilter === 'custom') {
+                    ({ startDate: initialStartDate, endDate: initialEndDate } = getDatesForRange(currentChartFilter, dateFromInput.value, dateToInput.value));
+                } else {
+                    ({ startDate: initialStartDate, endDate: initialEndDate } = getDatesForRange(currentChartFilter));
+                }
+                const initialFilteredSessionsForChart = filterSessionsByDate(initialStartDate, initialEndDate);
+                await updateCharts(initialFilteredSessionsForChart, allSessions, currentChartRangeTitle);
 
             } catch (error) {
                 console.error('[Dashboard] Error refreshing dashboard data:', error);
             }
         }
+
+
+        // --- Session Table Filtering & Pagination Logic ---
+
+        /**
+         * Populates the project filter dropdown with unique project names from allSessions.
+         */
+        function populateProjectFilter() {
+            if (!projectFilterSelect) return;
+
+            const projects = [...new Set(allSessions.map(s => s.project || 'N/A'))].sort();
+            // Clear existing options except the "All" default
+            projectFilterSelect.innerHTML = '<option value="All">All Projects</option>';
+
+            projects.forEach(project => {
+                if (project) { // Ensure project name is not empty/null
+                    const option = document.createElement('option');
+                    option.value = project;
+                    option.textContent = project;
+                    projectFilterSelect.appendChild(option);
+                }
+            });
+            projectFilterSelect.value = currentProjectFilter; // Set dropdown to current filter
+            console.log('[Dashboard] Project filter populated.');
+        }
+
+        /**
+         * Calculates the sessions to display based on current filters and pagination.
+         * @returns {{ visibleSessions: Array<Object>, currentPage: number, totalPages: number }}
+         */
+        function calculateVisibleSessions() {
+            // 1. Filter by Project
+            let filtered = allSessions;
+            if (currentProjectFilter !== 'All') {
+                filtered = allSessions.filter(session => (session.project || 'N/A') === currentProjectFilter);
+            }
+
+            // 2. Sort by Date (most recent first - already done in ui.js, but good to ensure here too)
+            // Let's keep the sorting logic primarily in ui.js for consistency when editing,
+            // but we need the *full* sorted list here for pagination.
+             filtered.sort((a, b) => {
+                 const dateA = new Date(`${a.date || ''}T${a.start_time || ''}`).getTime();
+                 const dateB = new Date(`${b.date || ''}T${b.start_time || ''}`).getTime();
+                 // Handle potential NaN values robustly
+                 const valA = isNaN(dateA) ? -Infinity : dateA;
+                 const valB = isNaN(dateB) ? -Infinity : dateB;
+                 return valB - valA; // Descending order
+             });
+
+
+            // 3. Paginate
+            const totalItems = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(totalItems / pageSize)); // Ensure at least 1 page
+
+            // Adjust currentPage if it's out of bounds (e.g., after filtering)
+            // Default to last page if current page is invalid
+            if (currentPage > totalPages) {
+                currentPage = totalPages;
+            }
+            if (currentPage < 1) {
+                currentPage = 1;
+            }
+
+            const startIndex = (currentPage - 1) * pageSize;
+            const endIndex = startIndex + pageSize;
+            const visibleSessions = filtered.slice(startIndex, endIndex);
+
+            return { visibleSessions, currentPage, totalPages };
+        }
+
+        /**
+         * Updates the session table display, pagination controls, and info text.
+         */
+        function refreshSessionDisplay() {
+            const { visibleSessions, currentPage: adjustedCurrentPage, totalPages } = calculateVisibleSessions();
+
+            // Update state (currentPage might have been adjusted)
+            currentPage = adjustedCurrentPage;
+
+            // Update the table in the UI
+            updateSessionsTable(visibleSessions, refreshDashboardData); // Pass only the visible sessions
+
+            // Update pagination controls
+            if (pageInfoSpan) {
+                pageInfoSpan.textContent = `Page ${currentPage} of ${totalPages}`;
+            }
+            if (prevPageBtn) {
+                prevPageBtn.disabled = currentPage <= 1;
+            }
+            if (nextPageBtn) {
+                nextPageBtn.disabled = currentPage >= totalPages;
+            }
+            console.log(`[Dashboard] Session display refreshed. Page: ${currentPage}/${totalPages}, Filter: ${currentProjectFilter}`);
+        }
+
 
         // --- Project Management ---
         async function initProjectManagement() {
@@ -293,19 +412,48 @@
             }
         }
 
-        // --- Event Listeners for Filters ---
+        // --- Event Listeners ---
+        // Chart Date Filters
         dateFilterButtons.forEach(button => {
-            button.addEventListener('click', () => handleDateFilterChange(button.dataset.range));
+             // Only add listener if it's part of the date filter group
+             if (button.closest('.date-filter-buttons')) {
+                button.addEventListener('click', () => handleDateFilterChange(button.dataset.range));
+             }
+        });
+        applyCustomDateButton.addEventListener('click', () => handleDateFilterChange('custom'));
+
+        // Session Table Filters & Pagination
+        projectFilterSelect?.addEventListener('change', (e) => {
+            currentProjectFilter = e.target.value;
+            currentPage = 1; // Reset to page 1 (most recent) when filter changes
+            refreshSessionDisplay();
         });
 
-        applyCustomDateButton.addEventListener('click', () => handleDateFilterChange('custom'));
+        prevPageBtn?.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                refreshSessionDisplay();
+            }
+        });
+
+        nextPageBtn?.addEventListener('click', () => {
+            // Calculate total pages dynamically in case it changed
+            const { totalPages } = calculateVisibleSessions();
+            if (currentPage < totalPages) {
+                currentPage++;
+                refreshSessionDisplay();
+            }
+        });
 
 
         // --- Initialization ---
         setupTabs(); // Set up tab functionality
         await initProjectManagement(); // Setup project add/delete/color
-        await refreshDashboardData(); // Load initial data first
-        // No need to call handleDateFilterChange here as refreshDashboardData already does it
+        await refreshDashboardData(); // Load initial data, populate filter, and display sessions/charts (will default to page 1)
+
+        // Initial display is handled by refreshDashboardData calling refreshSessionDisplay,
+        // which uses the default currentPage = 1. No extra setting needed here.
+
 
     } catch (error) {
         console.error('[Dashboard] Error initializing dashboard:', error);
