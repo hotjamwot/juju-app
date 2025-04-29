@@ -41,7 +41,7 @@
 
                     <div class="comparison-chart-item">
                         <h4 class="comparison-title" id="day-comparison-title">Compared to usual DAY</h4>
-                        <div class="chart-wrapper"> <!-- Wrapper to control canvas size -->
+                        <div class="chart-wrapper"> 
                              <canvas id="day-comparison-bar-chart"></canvas>
                         </div>
                         <div class="comparison-text-details" id="day-comparison-details">Loading...</div>
@@ -64,7 +64,7 @@
                     </div>
 
                 </div>
-                <!-- Pie chart container remains -->
+                <!-- Pie chart container -->
                 <div class="chart-container">
                     <canvas id="pie-chart"></canvas>
                 </div>
@@ -76,18 +76,18 @@
                     <h2 id="chart-range-title">Showing data for: This Year</h2>
                 </div>
                 <div class="date-filter-buttons">
-                    <button class="date-filter-btn" data-range="7d">Last 7 Days</button>
-                    <button class="date-filter-btn" data-range="1m">Last Month</button>
-                    <button class="date-filter-btn" data-range="3m">Last Quarter</button>
-                    <button class="date-filter-btn active" data-range="1y">This Year</button>
-                    <button class="date-filter-btn" data-range="all">All Time</button>
+                    <button class="btn btn-filter" data-range="7d">Last 7 Days</button>
+                    <button class="btn btn-filter" data-range="1m">Last Month</button>
+                    <button class="btn btn-filter" data-range="3m">Last Quarter</button>
+                    <button class="btn btn-filter active" data-range="1y">This Year</button> <!-- Added active class here too -->
+                    <button class="btn btn-filter" data-range="all">All Time</button>
                 </div>
                 <div class="date-filter-custom">
                     <label for="date-from">From:</label>
-                    <input type="date" id="date-from">
+                    <input type="date" id="date-from" class="input-base">
                     <label for="date-to">To:</label>
-                    <input type="date" id="date-to">
-                    <button id="apply-custom-date">Apply</button>
+                    <input type="date" id="date-to" class="input-base">
+                    <button id="apply-custom-date" class="btn btn-primary">Apply</button>
                 </div>
             </div>
         </div>
@@ -118,9 +118,9 @@
             <div class="projects-grid">
                 <div id="projects-list"></div>
                 <form id="add-project-form">
-                    <input type="text" id="new-project-name" placeholder="Project Name" required>
-                    <input type="color" id="new-project-color" value="#4E79A7">
-                    <button type="submit">Add Project</button>
+                    <input type="text" id="new-project-name" class="input-base" placeholder="Project Name" required>
+                    <input type="color" id="new-project-color" value="#4E79A7"> <!-- Color input kept separate styling -->
+                    <button type="submit" class="btn btn-primary">Add Project</button>
                 </form>
             </div>
         </div>

@@ -1,3 +1,8 @@
+/* Global Box Sizing */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
 /* Variables for consistent values */
 :root {
     --background-dark: #1E1E1E;
@@ -27,7 +32,7 @@ body {
     gap: 1rem;
     padding: 0;
     min-height: 100vh;
-    box-sizing: border-box;
+    /* box-sizing: border-box; <- Removed, handled globally */
 }
 
 .dashboard-header {
@@ -71,7 +76,7 @@ h1 {
     border-bottom: 2px solid transparent;
     color: var(--text-muted);
     font-weight: 400;
-    transition: all 0.2s ease;
+    transition: color 0.2s ease, border-bottom-color 0.2s ease; /* More specific transition */
 }
 
 .tab:hover {
@@ -137,8 +142,18 @@ input[type="text"] {
     padding: 8px;
     border: 1px solid #555;
     border-radius: 4px;
-    box-sizing: border-box;
+    /* box-sizing: border-box; <- Removed, handled globally */
     background-color: #444;
+    color: var(--text-light);
+}
+
+/* Base input style used elsewhere */
+input[type="text"] {
+    width: 100%;
+    padding: 8px; /* Slightly different padding, keep for now or adjust base */
+    border: 1px solid #555;
+    border-radius: 4px;
+    background-color: #444; /* Different background, keep for now */
     color: var(--text-light);
 }
 
@@ -172,7 +187,7 @@ input[type="text"] {
     border-radius: var(--border-radius);
     padding: var(--card-padding);
     position: relative;
-    box-sizing: border-box;
+    /* box-sizing: border-box; <- Removed, handled globally */
     min-width: 0;
     width: 100%;
     margin-bottom: 2rem;
@@ -217,13 +232,13 @@ canvas {
 
 /* Styling specifically for the notes editing textarea */
 #recent-sessions-body td .inline-edit-input[type="textarea"] {
-    display: block; 
-    width: 400px; 
+    display: block;
+    width: 400px;
     max-width: 100%;
-    box-sizing: border-box; 
-    height: 5em; 
-    padding: 6px 8px; 
-    margin: 0; 
+    /* box-sizing: border-box; <- Removed, handled globally */
+    height: 5em;
+    padding: 6px 8px;
+    margin: 0;
     border: 1px solid #555;
     background-color: #333;
     color: var(--text-light);
@@ -327,18 +342,9 @@ canvas {
     background: #5989b7;
 }
 
-.delete-project {
-    padding: 0.25rem 0.75rem;
-    background: var(--danger-red);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.delete-project:hover {
-    background: #e86b6d;
-}
+/* .delete-project styles moved to .btn-danger */
+/* Keep selector for potential JS targeting if needed, but remove style */
+.delete-project { }
 
 /* Date Filter Controls Styles */
 .date-filter-controls {
@@ -371,27 +377,9 @@ canvas {
     justify-content: center;
 }
 
-.date-filter-btn {
-    padding: 0.4rem 1rem;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
-    font-size: 0.9em;
-}
-
-.date-filter-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: var(--text-light);
-}
-
-.date-filter-btn.active {
-    background: var(--primary-blue);
-    color: white;
-    border-color: var(--primary-blue);
-}
+/* .date-filter-btn styles moved to .btn-filter */
+/* Keep selector for potential JS targeting if needed, but remove style */
+.date-filter-btn { }
 
 .date-filter-custom {
     display: flex;
@@ -407,30 +395,82 @@ canvas {
     color: var(--text-muted);
 }
 
-.date-filter-custom input[type="date"] {
-    padding: 0.3rem 0.5rem;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-    color: var(--text-light);
-    font-family: inherit;
-    font-size: 0.9em;
-    color-scheme: dark; /* Helps with date picker appearance in dark mode */
-}
+/* .date-filter-custom input[type="date"] styles moved to .input-base and input[type="date"].input-base */
+/* Keep selector for potential JS targeting if needed, but remove style */
+.date-filter-custom input[type="date"] { }
 
-#apply-custom-date {
-    padding: 0.4rem 1rem;
-    background: var(--primary-blue);
+/* #apply-custom-date styles moved to .btn and .btn-primary */
+/* Keep selector for potential JS targeting if needed, but remove style */
+#apply-custom-date { }
+
+
+/* --- Base Component Styles --- */
+.btn {
+    padding: 0.5rem 1rem;
     border: none;
     border-radius: 4px;
     color: white;
     cursor: pointer;
     font-size: 0.9em;
+    text-align: center;
+    transition: background-color 0.2s ease;
 }
 
-#apply-custom-date:hover {
+.btn-primary {
+    background: var(--primary-blue);
+}
+.btn-primary:hover {
     background: #5989b7;
 }
+
+.btn-danger {
+    padding: 0.25rem 0.75rem; /* Keep specific padding */
+    background: var(--danger-red);
+}
+.btn-danger:hover {
+    background: #e86b6d;
+}
+
+.btn-filter {
+    padding: 0.4rem 1rem; /* Keep specific padding */
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-muted);
+}
+.btn-filter:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-light);
+}
+.btn-filter.active {
+    background: var(--primary-blue);
+    color: white;
+    border-color: var(--primary-blue);
+}
+
+.input-base {
+    padding: 0.4rem;
+    font-size: 0.9em;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-light);
+    font-family: inherit;
+}
+
+/* Specific input type adjustments if needed */
+input[type="text"].input-base {
+    /* Add specific text input styles here if different from base */
+    /* Example: background-color: #444; if needed */
+    /* Using the style from #add-project-form input */
+}
+
+input[type="date"].input-base {
+    padding: 0.3rem 0.5rem; /* Keep specific padding */
+    color-scheme: dark;
+}
+
+/* --- End Base Component Styles --- */
+
 
 /* --- Comparison Chart Styles --- */
 .comparison-charts-container {
