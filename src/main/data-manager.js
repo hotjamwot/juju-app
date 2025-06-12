@@ -453,17 +453,56 @@ async function saveSession(sessionData) {
   }
 }
 
+/**
+ * Deletes a session from CSV file by ID
+ * @param {string|number} id - The ID of the session to delete
+ * @returns {Promise<boolean>} True if successful
+ */
+async function deleteSession(id) {
+    try {
+        // Load current sessions
+        let sessions = await loadSessionsFromCSV();
+        
+        // Convert id to number for comparison
+        const targetId = parseInt(id, 10);
+        
+        // Find session index
+        const sessionIndex = sessions.findIndex(s => s.id === targetId);
+        if (sessionIndex === -1) {
+            throw new Error(`Session with ID ${targetId} not found`);
+        }
+        
+        // Remove the session
+        sessions.splice(sessionIndex, 1);
+        
+        // Convert sessions back to CSV format
+        const csv = Papa.unparse(sessions.map(({ id, ...rest }) => rest), {
+            header: true,
+            quotes: true
+        });
+        
+        // Write back to file
+        await fsPromises.writeFile(DATA_FILE_PATH, csv, 'utf8');
+        console.log(`[Data Manager] Successfully deleted session ${targetId}`);
+        return true;
+    } catch (error) {
+        console.error('[Data Manager] Error deleting session:', error);
+        throw new Error('Failed to delete session');
+    }
+}
 
+// Update the exports to remove deleteSessionFromCSV and keep deleteSession
 module.exports = {
-  USER_DATA_PATH,
-  DATA_FILE_PATH,
-  PROJECTS_FILE_PATH,
-  ensureDataFilesExist,
-  loadSessionsFromCSV,
-  updateSessionInCSV,
-  loadAndMigrateProjects,
-  updateProjectColor,
-  addProject,
-  deleteProject,
-  saveSession,
+    USER_DATA_PATH,
+    DATA_FILE_PATH,
+    PROJECTS_FILE_PATH,
+    ensureDataFilesExist,
+    loadSessionsFromCSV,
+    updateSessionInCSV,
+    loadAndMigrateProjects,
+    updateProjectColor,
+    addProject,
+    deleteProject,
+    saveSession,
+    deleteSession, // Keep only this one, remove deleteSessionFromCSV
 };

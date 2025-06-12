@@ -50,8 +50,8 @@ async function showNotesDialog(dialogData) {
 
       // Create a new window instance each time
       let notesWin = new BrowserWindow({
-          width: 400, // Adjust size as needed
-          height: 300,
+          width: 600, // Adjust size as needed
+          height: 400,
           title: 'Session Notes',
           modal: true, // Make it modal to the parent if possible (depends on context, might need parent window passed in)
           // parent: ??? // Optional: Pass parent window if needed for modality

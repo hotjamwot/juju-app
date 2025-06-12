@@ -22,7 +22,7 @@ body {
     margin: 0;
     padding: 18px;
     font-weight: 200;
-    color: #c4adad;
+    color: var(--text-light);
     background-color: var(--background-dark);
 }
 
@@ -65,7 +65,7 @@ h1 {
 .tabs {
     display: flex;
     gap: 1rem;
-    margin-bottom: 2rem;
+    margin-bottom: 0;
     padding: 0 1rem;
 }
 
@@ -317,7 +317,6 @@ canvas {
     background: #5989b7;
 }
 
-/* .delete-project styles moved to .btn-danger */
 .delete-project { /* Kept selector for potential JS targeting */ }
 
 /* Date Filter Controls Styles */
@@ -380,31 +379,30 @@ canvas {
     padding: 0.5rem 1rem;
     border: none;
     border-radius: 4px;
-    color: white;
     cursor: pointer;
     font-size: 0.9em;
-    text-align: center;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .btn:disabled {
-    background-color: #555; /* Darker grey for disabled state */
-    color: #999; /* Lighter text for disabled state */
+    opacity: 0.6;
     cursor: not-allowed;
-    opacity: 0.7;
 }
 
 .btn-primary {
     background: var(--primary-blue);
+    color: white;
 }
-.btn-primary:hover:not(:disabled) { /* Only apply hover if not disabled */
+.btn-primary:hover:not(:disabled) {
     background: #5989b7;
 }
 
 .btn-danger {
-    padding: 0.25rem 0.75rem; /* Keep specific padding */
     background: var(--danger-red);
+    color: white;
+    border: none;
 }
+
 .btn-danger:hover:not(:disabled) {
     background: #e86b6d;
 }
@@ -423,6 +421,18 @@ canvas {
     background: var(--primary-blue);
     color: white;
     border-color: var(--primary-blue);
+}
+
+.btn-icon {
+    padding: 0.25rem;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    border-radius: 4px;
 }
 
 .input-base {
@@ -535,4 +545,30 @@ select.input-base {
 
 #recent-sessions-table-container {
     /* overflow-x: auto; */
+}
+
+/* Add specific styling for the delete button in tables */
+td.actions {
+    width: 40px;
+    text-align: center;
+    padding: 0.25rem;
+}
+
+.btn-delete {
+    padding: 0.25rem;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    background: var(--danger-red);
+    color: white;
+    opacity: 0.8;
+}
+
+.btn-delete:hover {
+    opacity: 1;
+    background: #e86b6d;
 }

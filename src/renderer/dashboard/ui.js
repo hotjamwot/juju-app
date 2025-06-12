@@ -52,8 +52,7 @@ function updateSessionsTable(visibleSessions, refreshDashboardDataCallback) {
     // Add each session row to the table
     visibleSessions.forEach(session => {
         const row = document.createElement('tr');
-        // Use a unique key if possible, combining id and maybe timestamp if id isn't truly unique across loads
-        row.setAttribute('data-session-key', `${session.id}-${session.date}-${session.start_time}`); // Example key
+        row.setAttribute('data-session-key', `${session.id}-${session.date}-${session.start_time}`);
 
         let formattedDate = "Invalid Date";
         try {
@@ -79,12 +78,16 @@ function updateSessionsTable(visibleSessions, refreshDashboardDataCallback) {
             <td class="editable" data-field="start_time" data-id="${session.id}">${startTime}</td>
             <td class="editable" data-field="end_time" data-id="${session.id}">${endTime}</td>
             <td class="editable" data-field="notes" data-id="${session.id}">${notes}</td>
+            <td class="actions">
+                <button class="btn btn-delete" data-id="${session.id}" title="Delete Session">×</button>
+            </td>
         `;
         recentSessionsBody.appendChild(row);
     });
 
-    // Add event listeners AFTER rows are added
-    addEditListeners(refreshDashboardDataCallback); // Pass the callback down
+    // Add both edit and delete listeners
+    addEditListeners(refreshDashboardDataCallback);
+    addDeleteListeners(refreshDashboardDataCallback);
     console.log('[UI] Sessions table updated.');
 }
 
@@ -220,6 +223,29 @@ async function handleCellUpdate(refreshDashboardDataCallback) { // Receive callb
     } finally {
          cell.removeAttribute('data-original-value');
     }
+}
+
+// Add this new function for delete functionality
+function addDeleteListeners(refreshDashboardDataCallback) {
+    document.querySelectorAll('#recent-sessions-body .btn-delete').forEach(button => {
+        button.addEventListener('click', async (e) => {
+            const id = e.target.dataset.id;
+            if (!id) return;
+
+            if (confirm('Are you sure you want to delete this session? This cannot be undone.')) {
+                try {
+                    await window.api.deleteSession(id);
+                    console.log(`[UI] Session deleted successfully: ${id}`);
+                    if (typeof refreshDashboardDataCallback === 'function') {
+                        refreshDashboardDataCallback();
+                    }
+                } catch (error) {
+                    console.error('[UI] Error deleting session:', error);
+                    alert('Failed to delete session. Please try again.');
+                }
+            }
+        });
+    });
 }
 
 export {
