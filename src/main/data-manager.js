@@ -491,6 +491,20 @@ async function deleteSession(id) {
     }
 }
 
+/**
+ * Gets all project names for dropdown selection
+ * @returns {Promise<Array<string>>} Array of project names
+ */
+async function getProjectNames() {
+    try {
+        const projects = await loadAndMigrateProjects();
+        return projects.map(project => project.name);
+    } catch (error) {
+        console.error('[Data Manager] Error getting project names:', error);
+        return [];
+    }
+}
+
 // Update the exports to remove deleteSessionFromCSV and keep deleteSession
 module.exports = {
     USER_DATA_PATH,
@@ -505,4 +519,5 @@ module.exports = {
     deleteProject,
     saveSession,
     deleteSession, // Keep only this one, remove deleteSessionFromCSV
+    getProjectNames,
 };

@@ -107,16 +107,55 @@ function addEditListeners(refreshDashboardDataCallback) {
 
 
 // Handles the click on an editable cell
-function handleCellClick(refreshDashboardDataCallback) { // Receive callback as argument
-    // 'this' refers to the clicked cell (td) because of .bind() or addEventListener context
-    if (this.querySelector('input, textarea')) return;
+async function handleCellClick(refreshDashboardDataCallback) {
+    // 'this' refers to the clicked cell (td)
+    if (this.querySelector('input, textarea, select')) return;
 
     const currentValue = this.textContent;
     const field = this.dataset.field;
     this.setAttribute('data-original-value', currentValue);
 
     let inputElement;
-    if (field === 'start_time' || field === 'end_time') {
+    
+    // Add special handling for project field
+    if (field === 'project') {
+        inputElement = document.createElement('select');
+        inputElement.classList.add('inline-edit-input');
+        inputElement.style.width = '100%';  // Make dropdown fill cell width
+        inputElement.style.height = '100%'; // Make dropdown fill cell height
+        
+        // Add loading option
+        const loadingOption = document.createElement('option');
+        loadingOption.text = 'Loading...';
+        inputElement.add(loadingOption);
+
+        try {
+            // Get project names from the API
+            const projectNames = await window.api.getProjectNames();
+            
+            // Clear loading option
+            inputElement.innerHTML = '';
+            
+            // Add default empty option
+            const emptyOption = document.createElement('option');
+            emptyOption.value = '';
+            emptyOption.text = '-- Select Project --';
+            inputElement.add(emptyOption);
+            
+            // Add project options
+            projectNames.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.text = name;
+                if (name === currentValue) {
+                    option.selected = true;
+                }
+                inputElement.add(option);
+            });
+        } catch (error) {
+            console.error('Failed to load project names:', error);
+        }
+    } else if (field === 'start_time' || field === 'end_time') {
         inputElement = document.createElement('input');
         inputElement.type = 'time';
         inputElement.value = /^\d{2}:\d{2}$/.test(currentValue) ? currentValue : '00:00';

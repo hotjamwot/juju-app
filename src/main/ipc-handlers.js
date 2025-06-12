@@ -170,6 +170,15 @@ function registerIpcHandlers() {
     }
   });
 
+  ipcMain.handle('get-project-names', async () => {
+    try {
+      return await dataManager.getProjectNames();
+    } catch (error) {
+      console.error('[IPC Handler] Error getting project names:', error);
+      throw error;
+    }
+  });
+
   console.log('[IPC Handler] IPC handlers registered.');
 }
 
