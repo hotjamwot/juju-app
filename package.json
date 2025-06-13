@@ -6,53 +6,31 @@
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
-    "make": "electron-forge make"
+    "make": "electron-forge make",
+    "check-deps": "depcheck"
   },
   "author": "HJW",
   "license": "MIT",
   "devDependencies": {
     "@electron-forge/cli": "^7.8.0",
-    "@electron-forge/maker-deb": "^7.8.0",
-    "@electron-forge/maker-rpm": "^7.8.0",
-    "@electron-forge/maker-squirrel": "^7.8.0",
-    "@electron-forge/maker-zip": "^7.8.0",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.8.0",
     "@electron-forge/plugin-fuses": "^7.8.0",
     "@electron/fuses": "^1.8.0",
+    "depcheck": "^1.4.7",
     "electron": "^28.3.3"
   },
   "dependencies": {
-    "electron-squirrel-startup": "^1.0.1",
     "papaparse": "^5.5.2"
   },
   "config": {
     "forge": {
       "packagerConfig": {
-        "icon": "assets/placeholder-logo"
+        "icon": "assets/placeholder-logo",
+        "asar": {
+          "compress": true
+        },
+        "platform": "darwin"
       },
-      "makers": [
-        {
-          "name": "@electron-forge/maker-zip",
-          "platforms": [
-            "darwin"
-          ]
-        },
-        {
-          "name": "@electron-forge/maker-squirrel",
-          "config": {
-            "name": "juju",
-            "setupIcon": "assets/icon.ico"
-          }
-        },
-        {
-          "name": "@electron-forge/maker-deb",
-          "config": {}
-        },
-        {
-          "name": "@electron-forge/maker-rpm",
-          "config": {}
-        }
-      ]
+      "makers": []
     }
   }
 }
